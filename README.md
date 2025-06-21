@@ -1,7 +1,8 @@
 # SnapQL
+
 cursor for data ⚡️ - explore your postgresql db in seconds
 
-https://github.com/user-attachments/assets/15da0076-7bc4-4a20-a65b-103838ce3bc5
+[https://github.com/user-attachments/assets/15da0076-7bc4-4a20-a65b-103838ce3bc5](https://github.com/user-attachments/assets/15da0076-7bc4-4a20-a65b-103838ce3bc5)
 
 * generate schema-aware queries in seconds with AI
 * supports any PostgreSQL database
@@ -20,6 +21,7 @@ I will eventually ship some precompiled binaries, but that takes some setup. In 
 * Run `npm install`
 * If you're on MacOS, you will need to have XCode installed
 * Run one of the following:
+
   * `npm run build:mac` — for a plain build
   * `npm run build:win` — for Windows
   * `npm run dist:mac` — for a **signed and notarized macOS build** (see setup below)
@@ -27,19 +29,31 @@ I will eventually ship some precompiled binaries, but that takes some setup. In 
 
 ---
 
-### 🧑‍💻 MacOS Signing & Notarization
+## 📜 macOS Signing & Notarization — Environment Variables
 
-If you want to build a signed & notarized macOS app (`npm run dist:mac`), you need to:
+When signing and notarizing the app, you’ll need to provide these environment variables for `electron-builder`. Here’s what they mean and where to find them:
 
-1. Have an **Apple Developer account**.
-2. Create an **App-specific password** for notarization.
-3. Set the following environment variables before running the build:
-   ```bash
-   export APPLE_ID="your-apple-id@example.com"
-   export APPLE_ID_PASSWORD="your-app-specific-password"
-   export ASC_PROVIDER="your-apple-team-id"
-   export CSC_NAME="Developer ID Application: Your Name (TeamID)"
+| Variable            | Description                                                                                               | Where to Find It                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `APPLE_ID`          | Your Apple ID (the one you use for your Apple Developer account).                                         | [https://developer.apple.com/account](https://developer.apple.com/account)                                            |
+| `APPLE_ID_PASSWORD` | An **App-specific password** generated under your Apple account security.                                 | Go to [https://appleid.apple.com/account/manage](https://appleid.apple.com/account/manage) → “App-Specific Passwords” |
+| `ASC_PROVIDER`      | Your **Team ID** (a 10-character alphanumeric string).                                                    | [https://developer.apple.com/account](https://developer.apple.com/account) → “Membership” → “Team ID”                 |
+| `CSC_NAME`          | The **exact name of your Developer ID Application certificate** installed in Keychain Access on your Mac. | Open **Keychain Access** → “My Certificates” → Copy the full name, e.g. `Developer ID Application: John Doe (TEAMID)` |
 
-4. Run:
-   ```bash
-   npm run dist:mac
+---
+
+> 💡 **Reference:**
+> See the official `electron-builder` docs for more details:
+> 🔗 [Electron Builder — Apple Notarization](https://www.electron.build/code-signing#apple-notarization)
+
+---
+
+With these environment variables set up, `electron-builder` will automatically handle signing and notarization when you run:
+
+```bash
+npm run dist:mac
+```
+
+---
+
+Happy hacking! 🎉
