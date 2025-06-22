@@ -1,7 +1,11 @@
-appId: com.electron.app
+# Set a unique appId using reverse-DNS style. This must match your Apple Developer identity.
+appId: com.k1mc4n.snapql          # ✅ RECOMMENDED: Use your unique identifier here
 productName: Snap QL
+
 directories:
   buildResources: build
+
+# Exclude dev-only files from the packaged app
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -9,8 +13,12 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+
+# Unpack resources if needed (for native binaries or static assets)
 asarUnpack:
   - resources/**
+
+# Configuration for Windows builds
 win:
   target:
     - target: nsis
@@ -18,29 +26,35 @@ win:
         - x64
   icon: logo.png
   executableName: snap-ql
+
+# NSIS installer configuration
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 
+# Configuration for macOS build and signing
 mac:
   icon: logo.png
-  hardenedRuntime: true
-  entitlements: build/entitlements.mac.plist
+  hardenedRuntime: true                          # ✅ Required for notarization
+  entitlements: build/entitlements.mac.plist     # ✅ Define required app permissions
   entitlementsInherit: build/entitlements.mac.plist
-  notarize: true
+  notarize: true                                 # ✅ Enable notarization
   gatekeeperAssess: false
-  teamId: "YOUR_TEAM_ID_HERE"       # <-- Set your Apple Team ID here
-  provisioningProfile: null
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  # teamId: "YOUR_TEAM_ID_HERE"                  ❌ REMOVE THIS — Not supported in latest electron-builder
+  provisioningProfile: null                      # Optional unless using App Store
+  extendInfo:                                    # ✅ These keys are required for user-facing permissions
+    NSCameraUsageDescription: Application requests access to the device's camera.
+    NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
 
+# macOS disk image (DMG) artifact
 dmg:
   artifactName: ${name}-${version}.${ext}
+
+# Linux targets and metadata
 linux:
   icon: logo.png
   target:
@@ -49,9 +63,15 @@ linux:
     - deb
   maintainer: electronjs.org
   category: Utility
+
+# Configuration for AppImage
 appImage:
   artifactName: ${name}-${version}.${ext}
+
+# Optional rebuild settings
 npmRebuild: false
+
+# Update server configuration
 publish:
   provider: generic
-  url: https://example.com/auto-updates
+  url: https://example.com/auto-updates           # ❗ Update this with your real update server
