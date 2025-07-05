@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.check_tag.outputs.release_created }}
+      release_version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get package version
+        id: get_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists and create release
+        id: check_tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="v${{ steps.get_version.outputs.version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists, skipping release creation"
+            echo "release_created=false" >> $GITHUB_OUTPUT
+          else
+            echo "Creating release for version $VERSION"
+            gh release create "$VERSION" \
+              --title "Release $VERSION" \
+              --notes "Release $VERSION" \
+              --draft=false \
+              --prerelease=false
+            echo "release_created=true" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: create-release
+    if: needs.create-release.outputs.release_created == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Linux
+        if: matrix.platform == 'linux'
+        run: npm run build:linux
+
+      - name: Build for Windows
+        if: matrix.platform == 'windows'
+        run: npm run build:win
+
+      - name: Build for macOS
+        if: matrix.platform == 'macos'
+        run: npm run build:mac
+
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'linux'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="v${{ needs.create-release.outputs.release_version }}"
+          
+          # List all files in dist to debug
+          echo "Files in dist:"
+          ls -la ./dist/
+          
+          # Upload all Linux artifacts
+          for file in ./dist/*.AppImage ./dist/*.deb ./dist/*.snap; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload "$VERSION" "$file" --clobber
+            fi
+          done
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'windows'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $VERSION = "v${{ needs.create-release.outputs.release_version }}"
+          
+          # List all files in dist to debug
+          Write-Host "Files in dist:"
+          Get-ChildItem ./dist/
+          
+          # Upload all Windows artifacts
+          Get-ChildItem ./dist/ -Filter "*.exe" | ForEach-Object {
+            Write-Host "Uploading $($_.Name)"
+            gh release upload "$VERSION" $_.FullName --clobber
+          }
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'macos'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="v${{ needs.create-release.outputs.release_version }}"
+          
+          # List all files in dist to debug
+          echo "Files in dist:"
+          ls -la ./dist/
+          
+          # Upload all macOS artifacts
+          for file in ./dist/*.dmg ./dist/*.zip; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload "$VERSION" "$file" --clobber
+            fi
+          done
