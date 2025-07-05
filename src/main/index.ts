@@ -12,6 +12,8 @@ import {
   setOpenAiBaseUrl,
   getOpenAiModel,
   setOpenAiModel,
+  getQueryHistory,
+  addQueryToHistory,
   getGeminiKey,
   setGeminiKey,
   getGeminiModel,
@@ -202,6 +204,26 @@ app.whenReady().then(() => {
         error: error.message,
         data: null
       }
+    }
+  })
+
+  ipcMain.handle('getQueryHistory', async () => {
+    try {
+      const history = await getQueryHistory()
+      return history
+    } catch (error: any) {
+      console.error('Error loading query history:', error)
+      return []
+    }
+  })
+
+  ipcMain.handle('addQueryToHistory', async (_, queryEntry) => {
+    try {
+      await addQueryToHistory(queryEntry)
+      return true
+    } catch (error: any) {
+      console.error('Error saving query to history:', error)
+      return false
     }
   })
 

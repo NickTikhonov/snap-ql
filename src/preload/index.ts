@@ -38,6 +38,9 @@ try {
     getLLMProvider: async () => await ipcRenderer.invoke('getLLMProvider'),
     setLLMProvider: async (provider: 'openai' | 'gemini') =>
       await ipcRenderer.invoke('setLLMProvider', provider),
+    getQueryHistory: async () => await ipcRenderer.invoke('getQueryHistory'),
+    addQueryToHistory: async (queryEntry: any) => 
+      await ipcRenderer.invoke('addQueryToHistory', queryEntry)
  
   })
 } catch (error) {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { SQLEditor } from './components/SQLEditor'
 import { ResultsTable } from './components/ResultsTable'
@@ -27,6 +27,24 @@ const Index = () => {
 
   const { toast } = useToast()
 
+  // Load query history on startup
+  useEffect(() => {
+    const loadQueryHistory = async () => {
+      try {
+        const history = await window.context.getQueryHistory()
+        // Convert timestamp strings back to Date objects
+        const historyWithDates = history.map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        }))
+        setQueryHistory(historyWithDates)
+      } catch (error) {
+        console.error('Failed to load query history:', error)
+      }
+    }
+    loadQueryHistory()
+  }, [])
+
   const runQuery = async (query: string) => {
     setIsLoading(true)
     try {
@@ -51,7 +69,19 @@ const Index = () => {
           timestamp: new Date()
         }
 
+        // Update local state
         setQueryHistory((prev) => [historyEntry, ...prev.slice(0, 19)]) // Keep last 20 queries
+        
+        // Persist to storage
+        try {
+          const historyEntryForStorage = {
+            ...historyEntry,
+            timestamp: historyEntry.timestamp.toISOString() // Convert Date to string for storage
+          }
+          await window.context.addQueryToHistory(historyEntryForStorage)
+        } catch (error) {
+          console.error('Failed to save query to history:', error)
+        }
       }
     } catch (error: any) {
       console.error('Query execution failed:', error)

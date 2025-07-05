@@ -31,6 +31,8 @@ declare global {
       setGeminiModel: (geminiModel: string) => Promise<boolean>
       getLLMProvider: () => Promise<'openai' | 'gemini'>
       setLLMProvider: (provider: 'openai' | 'gemini') => Promise<boolean>
+      getQueryHistory: () => Promise<any[]>
+      addQueryToHistory: (queryEntry: any) => Promise<boolean>
     }
   }
 }
