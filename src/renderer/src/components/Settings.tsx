@@ -272,7 +272,14 @@ export const Settings = () => {
             <div>
               <CardTitle className="text-base">Database Connection</CardTitle>
               <CardDescription className="text-xs">
-                Enter your PostgreSQL connection string to connect to your database.
+                Enter your MySQL or PostgreSQL connection URI to connect to your database.
+                <br />
+                <br />
+                <p className="text-xs text-muted-foreground">
+                  PostgreSQL: postgresql://username:password@hostname:port/database
+                  <br />
+                  MySQL: mysql://username:password@hostname:port/database
+                </p>
               </CardDescription>
             </div>
           </div>
@@ -290,9 +297,6 @@ export const Settings = () => {
               placeholder="postgresql://username:password@hostname:port/database"
               className="font-mono text-xs h-8"
             />
-            <p className="text-xs text-muted-foreground">
-              Format: postgresql://username:password@hostname:port/database
-            </p>
             {errorMessage && <p className="text-xs text-destructive">{errorMessage}</p>}
             {successMessage && <p className="text-xs text-green-500">{successMessage}</p>}
           </div>
@@ -572,31 +576,6 @@ export const Settings = () => {
         <CardContent className="pt-0">
           <div className="flex">
             <ModeToggle />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">About</CardTitle>
-          <CardDescription className="text-xs">
-            PostgreSQL Query Builder and Executor
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Version:</span>
-              <span>1.0.0</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Platform:</span>
-              <span>Electron + React</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">UI Library:</span>
-              <span>shadcn/ui</span>
-            </div>
           </div>
         </CardContent>
       </Card>

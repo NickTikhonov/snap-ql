@@ -1,11 +1,11 @@
 # SnapQL <!-- omit in toc -->
 
-cursor for data ⚡️ - explore your postgresql db in seconds
+cursor for data ⚡️ - explore your sql db in seconds
 
 https://github.com/user-attachments/assets/15da0076-7bc4-4a20-a65b-103838ce3bc5
 
 - generate schema-aware queries in seconds with AI
-- supports any PostgreSQL database
+- supports any PostgreSQL and MySQL database
 - local desktop app - your database credentials don't leave your computer
 - use your own OpenAI key
 

@@ -2,11 +2,10 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../logo.png?asset'
-import { generateQuery, runQuery, testPostgresConnection } from './lib/db'
+import { generateQuery, runQuery, testConnectionString } from './lib/db'
 import {
   getConnectionString,
   getOpenAiKey,
-  setConnectionString,
   setOpenAiKey,
   getOpenAiBaseUrl,
   setOpenAiBaseUrl,
@@ -14,6 +13,7 @@ import {
   setOpenAiModel,
   getQueryHistory,
   addQueryToHistory,
+  setConnectionString,
   getGeminiKey,
   setGeminiKey,
   getGeminiModel,
@@ -73,11 +73,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setConnectionString', async (_, connectionString) => {
     console.log('Setting connection string: ', connectionString)
-    const valid = await testPostgresConnection(connectionString)
-    if (valid) {
-      await setConnectionString(connectionString.length > 0 ? connectionString : null)
+    try {
+      await testConnectionString(connectionString)
+      await setConnectionString(connectionString)
       return true
-    } else {
+    } catch (error) {
+      console.error('Error testing connection string:', error)
       return false
     }
   })
@@ -194,10 +195,10 @@ app.whenReady().then(() => {
       if (connectionString.length === 0) {
         return { error: 'No connection string set' }
       }
-      const res = await runQuery(connectionString, query)
+      const rows = await runQuery(connectionString, query)
       return {
         error: null,
-        data: res.rows
+        data: rows
       }
     } catch (error: any) {
       return {

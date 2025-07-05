@@ -1,28 +1,65 @@
 import pg from 'pg'
+import mysql from 'mysql2/promise';
 import { generateObject } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { z } from 'zod'
 
-export async function testPostgresConnection(connectionString: string): Promise<boolean> {
+// check if it is a valid postgres or mysql connection string. testing only the first part of the connection string.
+// e.g.:
+// mysql:  mysql://user:pass@host/db?debug=true&charset=BIG5_CHINESE_CI&timezone=-0700
+// postgres: postgres://postgres:123456@127.0.0.1:5432/dummy
+function parseConnectionString(connectionString: string): 'postgres' | 'mysql' | null {
+  // split by // and check if the first part is postgres or mysql
+  const parts = connectionString.split('//')
+  if (parts.length > 0) {
+    const firstPart = parts[0]
+    if (firstPart.includes('postgres')) {
+      return 'postgres'
+    }
+    if (firstPart.includes('mysql')) {
+      return 'mysql'
+    }
+  }
+  return null
+}
+
+export async function testConnectionString(connectionString: string): Promise<void> {
   console.log('Testing connection string: ', connectionString)
-  const client = new pg.Client({ connectionString })
-  try {
+  const dbType = parseConnectionString(connectionString)
+  console.log('DB type: ', dbType)
+  if (dbType === 'postgres') {
+    const client = new pg.Client({ connectionString })
     await client.connect()
     await client.end()
-    return true
-  } catch (error) {
-    console.error('Failed to connect to pg: ', error)
-    return false
+  } else if (dbType === 'mysql') {
+    const client = await mysql.createConnection(connectionString)
+    await client.connect()
+    await client.end()
+  } else {
+    throw new Error('Invalid connection string')
   }
 }
 
-export async function runQuery(connectionString: string, query: string) {
-  const client = new pg.Client({ connectionString })
-  await client.connect()
-  const result = await client.query(query)
-  await client.end()
-  console.log('Query result: ', result)
-  return result
+export async function runQuery(connectionString: string, query: string): Promise<any[]> {
+  const dbType = parseConnectionString(connectionString)
+  if (!dbType) {
+    throw new Error('Invalid connection string')
+  }
+  if (dbType === 'postgres') {
+    console.log('Running Postgres query: ', query)
+    const client = new pg.Client({ connectionString })
+    await client.connect()
+    const result = await client.query(query)
+    await client.end()
+    return result.rows
+  } else {
+    console.log('Running MySQL query: ', query)
+    const client = await mysql.createConnection(connectionString)
+    const [results] = await client.query(query)
+    await client.end()
+    const rows = results as any[]
+    return rows
+  }
 }
 
 export async function generateQuery(
@@ -43,17 +80,21 @@ export async function generateQuery(
 
     // Use provided model or default to gpt-4o
     const modelToUse = openAiModel || 'gpt-4o'
+    const dbType = parseConnectionString(connectionString)
+    if (!dbType) {
+      throw new Error('Invalid connection string')
+    }
 
     const result = await generateObject({
       model: openai(modelToUse),
-      system: `You are a SQL (postgres) and data visualization expert. Your job is to help the user write or modify a SQL query to retrieve the data they need. The table schema is as follows:
+      system: `You are a SQL (${dbType}) and data visualization expert. Your job is to help the user write or modify a SQL query to retrieve the data they need. The table schema is as follows:
       ${tableSchema}
       Only retrieval queries are allowed.
 
       ${existing.length > 0 ? `The user's existing query is: ${existing}` : ``}
 
       format the query in a way that is easy to read and understand.
-      wrap table names in double quotes
+      ${dbType === 'postgres' ? 'wrap table names in double quotes' : ''}
     `,
       prompt: `Generate the query necessary to retrieve the data the user wants: ${input}`,
       schema: z.object({
@@ -73,9 +114,8 @@ export async function generateQuery(
 }
 
 export async function getTableSchema(connectionString: string) {
-  const client = new pg.Client({ connectionString })
-  await client.connect()
-  const schemaQuery = `
+  // TODO: figure out how to do this for mysql
+  const postgresSchemaQuery = `
     SELECT 
       t.table_name,
       c.column_name,
@@ -102,9 +142,41 @@ export async function getTableSchema(connectionString: string) {
       t.table_name, c.ordinal_position;
   `
 
-  const res = await client.query(schemaQuery)
-  await client.end()
-  const metadata = res.rows as any[]
+  const mysqlSchemaQuery = `
+    SELECT 
+      t.TABLE_NAME AS table_name,
+      c.COLUMN_NAME AS column_name,
+      c.DATA_TYPE AS data_type,
+      c.CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,
+      c.IS_NULLABLE AS is_nullable,
+      c.COLUMN_DEFAULT AS column_default,
+      tc.CONSTRAINT_TYPE AS constraint_type,
+      cc.REFERENCED_TABLE_NAME AS foreign_table_name,
+      cc.REFERENCED_COLUMN_NAME AS foreign_column_name
+    FROM 
+      information_schema.tables t
+    JOIN 
+      information_schema.columns c ON t.TABLE_NAME = c.TABLE_NAME
+    LEFT JOIN 
+      information_schema.KEY_COLUMN_USAGE kcu ON t.TABLE_NAME = kcu.TABLE_NAME AND c.COLUMN_NAME = kcu.COLUMN_NAME
+    LEFT JOIN 
+      information_schema.TABLE_CONSTRAINTS tc ON kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+    LEFT JOIN 
+      information_schema.REFERENTIAL_CONSTRAINTS rc ON tc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+    LEFT JOIN 
+      information_schema.KEY_COLUMN_USAGE cc ON rc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+    WHERE 
+      t.TABLE_SCHEMA = DATABASE()
+    ORDER BY 
+      t.TABLE_NAME, c.ORDINAL_POSITION;
+  `
+
+  const dbType = parseConnectionString(connectionString)
+  if (!dbType) {
+    throw new Error('Invalid connection string')
+  }
+  const schemaQuery = dbType === 'postgres' ? postgresSchemaQuery : mysqlSchemaQuery
+  const metadata = await runQuery(connectionString, schemaQuery)
 
   // Format the schema information into a readable string
   const schemaInfo = metadata.reduce((acc: Record<string, any[]>, row) => {
@@ -134,7 +206,13 @@ export async function getTableSchema(connectionString: string) {
   }, {})
 
   // Convert to CREATE TABLE format
-  return Object.entries(schemaInfo)
-    .map(([tableName, columns]) => `${tableName} (\n  ${columns.join(',\n  ')}\n)`)
+  const schema = Object.entries(schemaInfo)
+    .map(([tableName, columns]) => {
+      const uniqueColumns = Array.from(new Set(columns))
+      return `${tableName} (\n  ${uniqueColumns.join(',\n  ')}\n)`
+    })
     .join('\n\n')
+
+  console.log('Table schema: ', schema)
+  return schema
 }
