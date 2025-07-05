@@ -11,8 +11,15 @@ import {
   getOpenAiBaseUrl,
   setOpenAiBaseUrl,
   getOpenAiModel,
-  setOpenAiModel
+  setOpenAiModel,
+  getGeminiKey,
+  setGeminiKey,
+  getGeminiModel,
+  setGeminiModel,
+  getLLMProvider,
+  setLLMProvider
 } from './lib/state'
+import { getLLM, clearLLMCache } from './lib/llm'
 
 function createWindow(): void {
   // Create the browser window.
@@ -83,6 +90,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setOpenAiKey', async (_, openAiKey) => {
     await setOpenAiKey(openAiKey)
+    clearLLMCache() // Clear cache when API key changes
   })
 
   ipcMain.handle('getOpenAiBaseUrl', async () => {
@@ -91,6 +99,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setOpenAiBaseUrl', async (_, openAiBaseUrl) => {
     await setOpenAiBaseUrl(openAiBaseUrl)
+    clearLLMCache() // Clear cache when base URL changes
   })
 
   ipcMain.handle('getOpenAiModel', async () => {
@@ -101,21 +110,70 @@ app.whenReady().then(() => {
     await setOpenAiModel(openAiModel)
   })
 
+  ipcMain.handle('getGeminiKey', async () => {
+    return (await getGeminiKey()) ?? ''
+  })
+
+  ipcMain.handle('setGeminiKey', async (_, geminiKey) => {
+    await setGeminiKey(geminiKey)
+    clearLLMCache() // Clear cache when API key changes
+  })
+
+  ipcMain.handle('getGeminiModel', async () => {
+    return (await getGeminiModel()) ?? ''
+  })
+
+  ipcMain.handle('setGeminiModel', async (_, geminiModel) => {
+    await setGeminiModel(geminiModel)
+  })
+
+  ipcMain.handle('getLLMProvider', async () => {
+    return await getLLMProvider()
+  })
+
+  ipcMain.handle('setLLMProvider', async (_, provider) => {
+    await setLLMProvider(provider)
+  })
+
+  ipcMain.handle('generateWithLLM', async (_, provider, prompt, opts) => {
+    try {
+      const llm = await getLLM(provider)
+      const text = await llm.generateText({ prompt, ...opts })
+      return { error: null, data: text }
+    } catch (e: any) {
+      return { error: e.message, data: null }
+    }
+  })
+
+
+
   ipcMain.handle('generateQuery', async (_, input, existingQuery) => {
     try {
       console.log('Generating query with input: ', input, 'and existing query: ', existingQuery)
       const connectionString = await getConnectionString()
-      const openAiKey = await getOpenAiKey()
-      const openAiBaseUrl = await getOpenAiBaseUrl()
-      const openAiModel = await getOpenAiModel()
-      const query = await generateQuery(
-        input,
-        connectionString,
-        openAiKey,
-        existingQuery,
-        openAiBaseUrl,
-        openAiModel
-      )
+      const provider = await getLLMProvider()
+      
+      // Get table schema for context
+      const { getTableSchema } = await import('./lib/db')
+      const tableSchema = await getTableSchema(connectionString)
+      
+      const existing = existingQuery?.trim() || ''
+      
+      let prompt = `You are a SQL (postgres) and data visualization expert. The table schema is:
+      ${tableSchema}
+      
+      ${existing.length > 0 ? `The user's existing query is: ${existing}` : ''}
+      
+      Generate the query necessary to retrieve the data the user wants: ${input}
+      
+      IMPORTANT: Return ONLY the SQL query as plain text. Do NOT use markdown formatting, code blocks, or any other formatting. Just return the raw SQL query.`
+      
+      const llm = await getLLM(provider)
+      const query = await llm.generateText({ 
+        prompt,
+        model: provider === 'openai' ? (await getOpenAiModel()) || 'gpt-4o' : (await getGeminiModel()) || 'gemini-2.5-flash'
+      })
+      
       return {
         error: null,
         data: query

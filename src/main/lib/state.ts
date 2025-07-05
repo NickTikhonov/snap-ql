@@ -7,14 +7,20 @@ const settingsSchema = z.object({
   connectionString: z.string().optional(),
   openAiKey: z.string().optional(),
   openAiBaseUrl: z.string().optional(),
-  openAiModel: z.string().optional()
+  openAiModel: z.string().optional(),
+  geminiKey: z.string().optional(),
+  geminiModel: z.string().optional(),
+  llmProvider: z.enum(['openai', 'gemini']).optional()
 })
 
 const defaultSettings: z.infer<typeof settingsSchema> = {
   connectionString: undefined,
   openAiKey: undefined,
   openAiBaseUrl: undefined,
-  openAiModel: undefined
+  openAiModel: undefined,
+  geminiKey: undefined,
+  geminiModel: undefined,
+  llmProvider: 'openai'
 }
 
 function rootDir() {
@@ -89,5 +95,38 @@ export async function setOpenAiBaseUrl(openAiBaseUrl: string) {
 export async function setOpenAiModel(openAiModel: string) {
   const settings = await getSettings()
   settings.openAiModel = openAiModel
+  await setSettings(settings)
+}
+
+export async function getGeminiKey() {
+  const settings = await getSettings()
+  return settings.geminiKey
+}
+
+export async function setGeminiKey(geminiKey: string) {
+  const settings = await getSettings()
+  settings.geminiKey = geminiKey
+  await setSettings(settings)
+}
+
+export async function getGeminiModel() {
+  const settings = await getSettings()
+  return settings.geminiModel
+}
+
+export async function setGeminiModel(geminiModel: string) {
+  const settings = await getSettings()
+  settings.geminiModel = geminiModel
+  await setSettings(settings)
+}
+
+export async function getLLMProvider() {
+  const settings = await getSettings()
+  return settings.llmProvider || 'openai'
+}
+
+export async function setLLMProvider(provider: 'openai' | 'gemini') {
+  const settings = await getSettings()
+  settings.llmProvider = provider
   await setSettings(settings)
 }

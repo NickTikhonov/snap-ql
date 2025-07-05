@@ -4,6 +4,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible'
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group'
 import { TestTube, ChevronDown } from 'lucide-react'
 import { useToast } from '../hooks/use-toast'
 import { ModeToggle } from './ui/mode-toggle'
@@ -25,7 +26,17 @@ export const Settings = () => {
   const [modelError, setModelError] = useState<string | null>(null)
   const [modelSuccess, setModelSuccess] = useState<string | null>(null)
   const [isSavingModel, setIsSavingModel] = useState(false)
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
+  const [isOpenAIAdvancedOpen, setIsOpenAIAdvancedOpen] = useState(false)
+  const [isGeminiAdvancedOpen, setIsGeminiAdvancedOpen] = useState(false)
+  const [llmProvider, setLLMProvider] = useState<'openai' | 'gemini'>('openai')
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('')
+  const [geminiKeyError, setGeminiKeyError] = useState<string | null>(null)
+  const [geminiKeySuccess, setGeminiKeySuccess] = useState<string | null>(null)
+  const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false)
+  const [geminiModel, setGeminiModel] = useState<string>('')
+  const [geminiModelError, setGeminiModelError] = useState<string | null>(null)
+  const [geminiModelSuccess, setGeminiModelSuccess] = useState<string | null>(null)
+  const [isSavingGeminiModel, setIsSavingGeminiModel] = useState(false)
 
   const { toast } = useToast()
 
@@ -94,6 +105,49 @@ export const Settings = () => {
     loadSavedModel()
   }, [toast])
 
+  // Load the saved LLM provider when the component mounts
+  useEffect(() => {
+    const loadSavedProvider = async () => {
+      try {
+        const savedProvider = await window.context.getLLMProvider()
+        setLLMProvider(savedProvider)
+      } catch (error: any) {
+        console.error('Failed to load LLM provider:', error)
+      }
+    }
+    loadSavedProvider()
+  }, [])
+
+  // Load the saved Gemini API key when the component mounts
+  useEffect(() => {
+    const loadSavedGeminiKey = async () => {
+      try {
+        const savedGeminiKey = await window.context.getGeminiKey()
+        if (savedGeminiKey) {
+          setGeminiApiKey(savedGeminiKey)
+        }
+      } catch (error: any) {
+        setGeminiKeyError('Failed to load the Gemini API key. Please try again.')
+      }
+    }
+    loadSavedGeminiKey()
+  }, [])
+
+  // Load the saved Gemini model when the component mounts
+  useEffect(() => {
+    const loadSavedGeminiModel = async () => {
+      try {
+        const savedGeminiModel = await window.context.getGeminiModel()
+        if (savedGeminiModel) {
+          setGeminiModel(savedGeminiModel)
+        }
+      } catch (error: any) {
+        setGeminiModelError('Failed to load the Gemini model. Please try again.')
+      }
+    }
+    loadSavedGeminiModel()
+  }, [])
+
   const updateConnectionString = async () => {
     setIsTesting(true)
     setSuccessMessage(null)
@@ -160,6 +214,49 @@ export const Settings = () => {
     }
   }
 
+  const updateLLMProvider = async (provider: 'openai' | 'gemini') => {
+    try {
+      await window.context.setLLMProvider(provider)
+      setLLMProvider(provider)
+    } catch (error: any) {
+      toast({
+        title: 'Error saving LLM provider',
+        description: 'Failed to save the LLM provider: ' + error.message,
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const updateGeminiApiKey = async () => {
+    setIsSavingGeminiKey(true)
+    setGeminiKeySuccess(null)
+    setGeminiKeyError(null)
+    try {
+      await window.context.setGeminiKey(geminiApiKey)
+      setGeminiKeyError(null)
+      setGeminiKeySuccess('Gemini API key saved successfully.')
+    } catch (error: any) {
+      setGeminiKeyError('Failed to save the Gemini API key: ' + error.message)
+    } finally {
+      setIsSavingGeminiKey(false)
+    }
+  }
+
+  const updateGeminiModel = async () => {
+    setIsSavingGeminiModel(true)
+    setGeminiModelSuccess(null)
+    setGeminiModelError(null)
+    try {
+      await window.context.setGeminiModel(geminiModel)
+      setGeminiModelError(null)
+      setGeminiModelSuccess('Gemini model saved successfully.')
+    } catch (error: any) {
+      setGeminiModelError('Failed to save the Gemini model: ' + error.message)
+    } finally {
+      setIsSavingGeminiModel(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl space-y-4">
       <div>
@@ -212,131 +309,258 @@ export const Settings = () => {
         </CardContent>
       </Card>
 
+      {llmProvider === 'openai' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">OpenAI API Key</CardTitle>
+                <CardDescription className="text-xs">
+                  Enter your OpenAI API key to enable AI-powered features.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            <div className="space-y-1.5">
+              <Label htmlFor="openai-api-key" className="text-xs">
+                API Key
+              </Label>
+              <Input
+                id="openai-api-key"
+                type="password"
+                value={openAIApiKey}
+                onChange={(e) => setOpenAIApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="font-mono text-xs h-8"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                You can create an API key at{' '}
+                <a
+                  href="https://platform.openai.com/account/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  OpenAI API Keys
+                </a>
+                .
+              </p>
+              {apiKeyError && <p className="text-xs text-destructive">{apiKeyError}</p>}
+              {apiKeySuccess && <p className="text-xs text-green-500">{apiKeySuccess}</p>}
+            </div>
+
+            <Button
+              onClick={updateOpenAIApiKey}
+              disabled={isSavingApiKey || !openAIApiKey.trim()}
+              className="flex items-center space-x-1.5 h-8 px-3 text-xs"
+              size="sm"
+            >
+              <span>{isSavingApiKey ? 'Saving...' : 'Save Key'}</span>
+            </Button>
+
+            <Collapsible open={isOpenAIAdvancedOpen} onOpenChange={setIsOpenAIAdvancedOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-1.5 h-8 px-3 text-xs">
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${isOpenAIAdvancedOpen ? 'rotate-180' : ''}`}
+                  />
+                  <span>Advanced Options</span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="openai-base-url" className="text-xs">
+                    Base URL (Optional)
+                  </Label>
+                  <Input
+                    id="openai-base-url"
+                    type="text"
+                    value={openAIBaseUrl}
+                    onChange={(e) => setOpenAIBaseUrl(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                    className="font-mono text-xs h-8"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Custom base URL for OpenAI API. Leave empty to use the default OpenAI endpoint.
+                    Useful for OpenAI-compatible APIs like Azure OpenAI or local models.
+                  </p>
+                  {baseUrlError && <p className="text-xs text-destructive">{baseUrlError}</p>}
+                  {baseUrlSuccess && <p className="text-xs text-green-500">{baseUrlSuccess}</p>}
+                </div>
+
+                <Button
+                  onClick={updateOpenAIBaseUrl}
+                  disabled={isSavingBaseUrl}
+                  className="flex items-center space-x-1.5 h-8 px-3 text-xs"
+                  size="sm"
+                  variant="outline"
+                >
+                  <span>{isSavingBaseUrl ? 'Saving...' : 'Save Base URL'}</span>
+                </Button>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="openai-model" className="text-xs">
+                    Model (Optional)
+                  </Label>
+                  <Input
+                    id="openai-model"
+                    type="text"
+                    value={openAIModel}
+                    onChange={(e) => setOpenAIModel(e.target.value)}
+                    placeholder="gpt-4o"
+                    className="font-mono text-xs h-8"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Model ID to use for query generation. Leave empty to use gpt-4o (default).
+                    Examples: gpt-4, gpt-3.5-turbo, claude-3-sonnet, or custom model names.
+                  </p>
+                  {modelError && <p className="text-xs text-destructive">{modelError}</p>}
+                  {modelSuccess && <p className="text-xs text-green-500">{modelSuccess}</p>}
+                </div>
+
+                <Button
+                  onClick={updateOpenAIModel}
+                  disabled={isSavingModel}
+                  className="flex items-center space-x-1.5 h-8 px-3 text-xs"
+                  size="sm"
+                  variant="outline"
+                >
+                  <span>{isSavingModel ? 'Saving...' : 'Save Model'}</span>
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">OpenAI API Key</CardTitle>
-              <CardDescription className="text-xs">
-                Enter your OpenAI API key to enable AI-powered features.
-              </CardDescription>
-            </div>
-          </div>
+          <CardTitle className="text-base">LLM Provider</CardTitle>
+          <CardDescription className="text-xs">
+            Choose your preferred AI provider for query generation.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 pt-0">
-          <div className="space-y-1.5">
-            <Label htmlFor="openai-api-key" className="text-xs">
-              API Key
-            </Label>
-            <Input
-              id="openai-api-key"
-              type="password"
-              value={openAIApiKey}
-              onChange={(e) => setOpenAIApiKey(e.target.value)}
-              placeholder="sk-..."
-              className="font-mono text-xs h-8"
-              autoComplete="off"
-            />
-            <p className="text-xs text-muted-foreground">
-              You can create an API key at{' '}
-              <a
-                href="https://platform.openai.com/account/api-keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                OpenAI API Keys
-              </a>
-              .
-            </p>
-            {apiKeyError && <p className="text-xs text-destructive">{apiKeyError}</p>}
-            {apiKeySuccess && <p className="text-xs text-green-500">{apiKeySuccess}</p>}
+          <div className="space-y-3">
+            <Label className="text-xs">Select Provider</Label>
+            <RadioGroup
+              value={llmProvider}
+              onValueChange={(value) => updateLLMProvider(value as 'openai' | 'gemini')}
+              className="flex flex-col space-y-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="openai" id="openai" />
+                <Label htmlFor="openai" className="text-xs cursor-pointer">
+                  OpenAI (GPT-4, GPT-3.5)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="gemini" id="gemini" />
+                <Label htmlFor="gemini" className="text-xs cursor-pointer">
+                  Google Gemini (Flash, Pro)
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
-
-          <Button
-            onClick={updateOpenAIApiKey}
-            disabled={isSavingApiKey || !openAIApiKey.trim()}
-            className="flex items-center space-x-1.5 h-8 px-3 text-xs"
-            size="sm"
-          >
-            <span>{isSavingApiKey ? 'Saving...' : 'Save Key'}</span>
-          </Button>
-
-          <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="flex items-center space-x-1.5 h-8 px-3 text-xs">
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform ${isAdvancedOpen ? 'rotate-180' : ''}`}
-                />
-                <span>Advanced Options</span>
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-3 pt-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="openai-base-url" className="text-xs">
-                  Base URL (Optional)
-                </Label>
-                <Input
-                  id="openai-base-url"
-                  type="text"
-                  value={openAIBaseUrl}
-                  onChange={(e) => setOpenAIBaseUrl(e.target.value)}
-                  placeholder="https://api.openai.com/v1"
-                  className="font-mono text-xs h-8"
-                  autoComplete="off"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Custom base URL for OpenAI API. Leave empty to use the default OpenAI endpoint.
-                  Useful for OpenAI-compatible APIs like Azure OpenAI or local models.
-                </p>
-                {baseUrlError && <p className="text-xs text-destructive">{baseUrlError}</p>}
-                {baseUrlSuccess && <p className="text-xs text-green-500">{baseUrlSuccess}</p>}
-              </div>
-
-              <Button
-                onClick={updateOpenAIBaseUrl}
-                disabled={isSavingBaseUrl}
-                className="flex items-center space-x-1.5 h-8 px-3 text-xs"
-                size="sm"
-                variant="outline"
-              >
-                <span>{isSavingBaseUrl ? 'Saving...' : 'Save Base URL'}</span>
-              </Button>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="openai-model" className="text-xs">
-                  Model (Optional)
-                </Label>
-                <Input
-                  id="openai-model"
-                  type="text"
-                  value={openAIModel}
-                  onChange={(e) => setOpenAIModel(e.target.value)}
-                  placeholder="gpt-4o"
-                  className="font-mono text-xs h-8"
-                  autoComplete="off"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Model ID to use for query generation. Leave empty to use gpt-4o (default).
-                  Examples: gpt-4, gpt-3.5-turbo, claude-3-sonnet, or custom model names.
-                </p>
-                {modelError && <p className="text-xs text-destructive">{modelError}</p>}
-                {modelSuccess && <p className="text-xs text-green-500">{modelSuccess}</p>}
-              </div>
-
-              <Button
-                onClick={updateOpenAIModel}
-                disabled={isSavingModel}
-                className="flex items-center space-x-1.5 h-8 px-3 text-xs"
-                size="sm"
-                variant="outline"
-              >
-                <span>{isSavingModel ? 'Saving...' : 'Save Model'}</span>
-              </Button>
-            </CollapsibleContent>
-          </Collapsible>
         </CardContent>
       </Card>
+
+      {llmProvider === 'gemini' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Google Gemini API Key</CardTitle>
+            <CardDescription className="text-xs">
+              Enter your Google Gemini API key to enable Gemini-powered features.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            <div className="space-y-1.5">
+              <Label htmlFor="gemini-api-key" className="text-xs">
+                API Key
+              </Label>
+              <Input
+                id="gemini-api-key"
+                type="password"
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                placeholder="AIza..."
+                className="font-mono text-xs h-8"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                You can create an API key at{' '}
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Google AI Studio
+                </a>
+                .
+              </p>
+              {geminiKeyError && <p className="text-xs text-destructive">{geminiKeyError}</p>}
+              {geminiKeySuccess && <p className="text-xs text-green-500">{geminiKeySuccess}</p>}
+            </div>
+
+            <Button
+              onClick={updateGeminiApiKey}
+              disabled={isSavingGeminiKey || !geminiApiKey.trim()}
+              className="flex items-center space-x-1.5 h-8 px-3 text-xs"
+              size="sm"
+            >
+              <span>{isSavingGeminiKey ? 'Saving...' : 'Save Key'}</span>
+            </Button>
+
+            <Collapsible open={isGeminiAdvancedOpen} onOpenChange={setIsGeminiAdvancedOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-1.5 h-8 px-3 text-xs">
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${isGeminiAdvancedOpen ? 'rotate-180' : ''}`}
+                  />
+                  <span>Advanced Options</span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="gemini-model" className="text-xs">
+                    Model (Optional)
+                  </Label>
+                  <Input
+                    id="gemini-model"
+                    type="text"
+                    value={geminiModel}
+                    onChange={(e) => setGeminiModel(e.target.value)}
+                    placeholder="gemini-2.5-flash"
+                    className="font-mono text-xs h-8"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Model ID to use for query generation. Leave empty to use gemini-2.5-flash (default).
+                    Examples: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash-exp.
+                  </p>
+                  {geminiModelError && <p className="text-xs text-destructive">{geminiModelError}</p>}
+                  {geminiModelSuccess && <p className="text-xs text-green-500">{geminiModelSuccess}</p>}
+                </div>
+
+                <Button
+                  onClick={updateGeminiModel}
+                  disabled={isSavingGeminiModel}
+                  className="flex items-center space-x-1.5 h-8 px-3 text-xs"
+                  size="sm"
+                  variant="outline"
+                >
+                  <span>{isSavingGeminiModel ? 'Saving...' : 'Save Model'}</span>
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
