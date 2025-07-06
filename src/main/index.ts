@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../logo.png?asset'
-import { generateQuery, runQuery, testConnectionString } from './lib/db'
+import { runQuery, testConnectionString } from './lib/db'
 import {
   getConnectionString,
   getOpenAiKey,
@@ -14,6 +14,8 @@ import {
   getQueryHistory,
   addQueryToHistory,
   setConnectionString,
+  getPromptExtension,
+  setPromptExtension,
   getGeminiKey,
   setGeminiKey,
   getGeminiModel,
@@ -21,7 +23,7 @@ import {
   getLLMProvider,
   setLLMProvider
 } from './lib/state'
-import { getLLM, clearLLMCache } from './lib/llm'
+import { getLLM } from './lib/llm'
 
 function createWindow(): void {
   // Create the browser window.
@@ -93,7 +95,6 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setOpenAiKey', async (_, openAiKey) => {
     await setOpenAiKey(openAiKey)
-    clearLLMCache() // Clear cache when API key changes
   })
 
   ipcMain.handle('getOpenAiBaseUrl', async () => {
@@ -102,7 +103,6 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setOpenAiBaseUrl', async (_, openAiBaseUrl) => {
     await setOpenAiBaseUrl(openAiBaseUrl)
-    clearLLMCache() // Clear cache when base URL changes
   })
 
   ipcMain.handle('getOpenAiModel', async () => {
@@ -119,7 +119,6 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setGeminiKey', async (_, geminiKey) => {
     await setGeminiKey(geminiKey)
-    clearLLMCache() // Clear cache when API key changes
   })
 
   ipcMain.handle('getGeminiModel', async () => {
@@ -141,7 +140,7 @@ app.whenReady().then(() => {
   ipcMain.handle('generateWithLLM', async (_, provider, prompt, opts) => {
     try {
       const llm = await getLLM(provider)
-      const text = await llm.generateText({ prompt, ...opts })
+      const text = await llm.generateQuery({ prompt, ...opts })
       return { error: null, data: text }
     } catch (e: any) {
       return { error: e.message, data: null }
@@ -158,22 +157,33 @@ app.whenReady().then(() => {
       
       // Get table schema for context
       const { getTableSchema } = await import('./lib/db')
-      const tableSchema = await getTableSchema(connectionString)
+      const tableSchema = await getTableSchema(connectionString ?? '')
       
       const existing = existingQuery?.trim() || ''
       
-      let prompt = `You are a SQL (postgres) and data visualization expert. The table schema is:
-      ${tableSchema}
+      // Get the prompt extension for additional user instructions
+      const promptExtension = (await getPromptExtension()) || ''
       
-      ${existing.length > 0 ? `The user's existing query is: ${existing}` : ''}
-      
-      Generate the query necessary to retrieve the data the user wants: ${input}
-      
-      IMPORTANT: Return ONLY the SQL query as plain text. Do NOT use markdown formatting, code blocks, or any other formatting. Just return the raw SQL query.`
+      const dbType = 'postgres' // You can make this configurable later
       
       const llm = await getLLM(provider)
-      const query = await llm.generateText({ 
-        prompt,
+      
+      // Combine system and prompt into a single prompt for the LLM adapter
+      const combinedPrompt = `You are a SQL (${dbType}) and data visualization expert. Your job is to help the user write or modify a SQL query to retrieve the data they need. The table schema is as follows:
+      ${tableSchema}
+      Only retrieval queries are allowed.
+
+      ${existing.length > 0 ? `The user's existing query is: ${existing}` : ``}
+
+      ${promptExtension.length > 0 ? `Extra information: ${promptExtension}` : ``}
+
+      format the query in a way that is easy to read and understand.
+      ${dbType === 'postgres' ? 'wrap table names in double quotes' : ''}
+
+      Generate the query necessary to retrieve the data the user wants: ${input}`
+      
+      const query = await llm.generateQuery({
+        prompt: combinedPrompt,
         model: provider === 'openai' ? (await getOpenAiModel()) || 'gpt-4o' : (await getGeminiModel()) || 'gemini-2.5-flash'
       })
       
@@ -191,7 +201,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('runQuery', async (_, query) => {
     try {
-      const connectionString = await getConnectionString()
+      const connectionString = (await getConnectionString()) ?? ''
       if (connectionString.length === 0) {
         return { error: 'No connection string set' }
       }
@@ -226,6 +236,14 @@ app.whenReady().then(() => {
       console.error('Error saving query to history:', error)
       return false
     }
+  })
+
+  ipcMain.handle('getPromptExtension', async () => {
+    return (await getPromptExtension()) ?? ''
+  })
+
+  ipcMain.handle('setPromptExtension', async (_, promptExtension) => {
+    await setPromptExtension(promptExtension)
   })
 
   createWindow()

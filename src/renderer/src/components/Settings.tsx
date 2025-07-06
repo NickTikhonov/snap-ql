@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group'
 import { TestTube, ChevronDown } from 'lucide-react'
 import { useToast } from '../hooks/use-toast'
 import { ModeToggle } from './ui/mode-toggle'
+import { Textarea } from './ui/textarea'
 
 export const Settings = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -37,6 +38,10 @@ export const Settings = () => {
   const [geminiModelError, setGeminiModelError] = useState<string | null>(null)
   const [geminiModelSuccess, setGeminiModelSuccess] = useState<string | null>(null)
   const [isSavingGeminiModel, setIsSavingGeminiModel] = useState(false)
+  const [promptExtension, setPromptExtension] = useState<string>('')
+  const [isSavingPromptExtension, setIsSavingPromptExtension] = useState(false)
+  const [promptExtensionError, setPromptExtensionError] = useState<string | null>(null)
+  const [promptExtensionSuccess, setPromptExtensionSuccess] = useState<string | null>(null)
 
   const { toast } = useToast()
 
@@ -148,6 +153,21 @@ export const Settings = () => {
     loadSavedGeminiModel()
   }, [])
 
+  // Load the saved prompt extension when the component mounts
+  useEffect(() => {
+    const loadSavedPromptExtension = async () => {
+      try {
+        const savedPromptExtension = await window.context.getPromptExtension()
+        if (savedPromptExtension) {
+          setPromptExtension(savedPromptExtension)
+        }
+      } catch (error: any) {
+        setPromptExtensionError('Failed to load the prompt extension. Please try again.')
+      }
+    }
+    loadSavedPromptExtension()
+  }, [toast])
+
   const updateConnectionString = async () => {
     setIsTesting(true)
     setSuccessMessage(null)
@@ -254,6 +274,21 @@ export const Settings = () => {
       setGeminiModelError('Failed to save the Gemini model: ' + error.message)
     } finally {
       setIsSavingGeminiModel(false)
+    }
+  }
+
+  const updatePromptExtension = async () => {
+    setIsSavingPromptExtension(true)
+    setPromptExtensionSuccess(null)
+    setPromptExtensionError(null)
+    try {
+      await window.context.setPromptExtension(promptExtension)
+      setPromptExtensionError(null)
+      setPromptExtensionSuccess('Prompt extension saved successfully.')
+    } catch (error: any) {
+      setPromptExtensionError('Failed to save the prompt extension: ' + error.message)
+    } finally {
+      setIsSavingPromptExtension(false)
     }
   }
 
@@ -568,6 +603,39 @@ export const Settings = () => {
 
       <Card>
         <CardHeader className="pb-3">
+          <CardTitle className="text-base">Custom Prompt</CardTitle>
+          <CardDescription className="text-xs">
+            Add to the AI prompt. Use this field to add any additional information about your
+            database that isn&apos;t captured in the schema. This will help the AI generate more
+            accurate queries.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-3">
+          <Textarea
+            value={promptExtension}
+            onChange={(e) => setPromptExtension(e.target.value)}
+            placeholder="e.g. the table 'rooms' also tracks the front and backyard of the house for legacy reasons"
+            className="font-mono text-xs h-8"
+          />
+          {promptExtensionError && (
+            <p className="text-xs text-destructive">{promptExtensionError}</p>
+          )}
+          {promptExtensionSuccess && (
+            <p className="text-xs text-green-500">{promptExtensionSuccess}</p>
+          )}
+          <Button
+            onClick={updatePromptExtension}
+            disabled={isSavingPromptExtension}
+            className="flex items-center space-x-1.5 h-8 px-3 text-xs"
+            size="sm"
+          >
+            <span>{isSavingPromptExtension ? 'Saving...' : 'Save Prompt'}</span>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">Theme Settings</CardTitle>
           <CardDescription className="text-xs">
             Toggle between light, dark, and system themes.
@@ -579,6 +647,7 @@ export const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
     </div>
   )
 }

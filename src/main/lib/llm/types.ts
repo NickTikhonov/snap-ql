@@ -8,8 +8,8 @@ export interface LLMGenOptions {
 
 export interface LLMAdapter {
   name: 'openai' | 'gemini'
-  generateText(opts: LLMGenOptions): Promise<string>
-  generateTextStream?(opts: LLMGenOptions): AsyncIterable<string>
+  generateQuery(opts: LLMGenOptions): Promise<string>
+  generateQueryStream?(opts: LLMGenOptions): AsyncIterable<string>
 }
 
 /**
