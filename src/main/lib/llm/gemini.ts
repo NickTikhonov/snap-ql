@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import type { LLMAdapter, LLMGenOptions } from './types'
 import { stripMarkdownCodeBlocks } from './types'
 
@@ -7,38 +7,61 @@ export class GeminiAdapter implements LLMAdapter {
   private client
   
   constructor(apiKey: string) {
-    this.client = new GoogleGenerativeAI(apiKey)
+     
+    this.client = new GoogleGenAI({ apiKey })
   }
 
   async generateQuery({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): Promise<string> {
-    const generativeModel = this.client.getGenerativeModel({ 
+    const config =
+      temperature !== undefined || maxTokens !== undefined
+        ? {
+            ...(temperature !== undefined && { temperature }),
+            ...(maxTokens   !== undefined && { maxOutputTokens: maxTokens }),
+          }
+        : undefined
+
+    const contents = [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ]
+
+    const response = await this.client.models.generateContent({
       model,
-      generationConfig: {
-        ...(temperature !== undefined && { temperature }),
-        ...(maxTokens !== undefined && { maxOutputTokens: maxTokens })
-      }
+      contents,
+      ...(config && { config }),
     })
-    
-    const result = await generativeModel.generateContent(prompt)
-    const response = await result.response
-    const text = response.text().trim()
+
+    const text = response.text.trim()
     return stripMarkdownCodeBlocks(text)
   }
 
   async *generateQueryStream({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): AsyncIterable<string> {
-    const generativeModel = this.client.getGenerativeModel({ 
+    const config =
+      temperature !== undefined || maxTokens !== undefined
+        ? {
+            ...(temperature !== undefined && { temperature }),
+            ...(maxTokens   !== undefined && { maxOutputTokens: maxTokens }),
+          }
+        : undefined
+
+    const contents = [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ]
+
+    const stream = await this.client.models.generateContentStream({
       model,
-      generationConfig: {
-        ...(temperature !== undefined && { temperature }),
-        ...(maxTokens !== undefined && { maxOutputTokens: maxTokens })
-      }
+      contents,
+      ...(config && { config }),
     })
     
-    const result = await generativeModel.generateContentStream(prompt)
-    
     let buffer = ''
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text()
+    for await (const chunk of stream) {
+      const chunkText = chunk.text
       if (chunkText) {
         buffer += chunkText
         yield chunkText
