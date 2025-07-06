@@ -33,6 +33,8 @@ declare global {
       setLLMProvider: (provider: 'openai' | 'gemini') => Promise<boolean>
       getQueryHistory: () => Promise<any[]>
       addQueryToHistory: (queryEntry: any) => Promise<boolean>
+      getPromptExtension: () => Promise<string>
+      setPromptExtension: (promptExtension: string) => Promise<boolean>
     }
   }
 }

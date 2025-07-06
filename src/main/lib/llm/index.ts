@@ -3,11 +3,7 @@ import { GeminiAdapter } from './gemini'
 import { getOpenAiKey, getOpenAiBaseUrl, getGeminiKey } from '../state'
 import type { LLMAdapter } from './types'
 
-const cache: Map<string, LLMAdapter> = new Map()
-
 export async function getLLM(provider: 'openai' | 'gemini'): Promise<LLMAdapter> {
-  if (cache.has(provider)) return cache.get(provider)!
-
   let adapter: LLMAdapter
   switch (provider) {
     case 'openai': {
@@ -30,12 +26,7 @@ export async function getLLM(provider: 'openai' | 'gemini'): Promise<LLMAdapter>
     default:
       throw new Error(`Provider ${provider} not supported`)
   }
-  cache.set(provider, adapter)
   return adapter
-}
-
-export function clearLLMCache() {
-  cache.clear()
 }
 
 export type { LLMAdapter, LLMGenOptions } from './types' 

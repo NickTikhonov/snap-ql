@@ -39,9 +39,11 @@ try {
     setLLMProvider: async (provider: 'openai' | 'gemini') =>
       await ipcRenderer.invoke('setLLMProvider', provider),
     getQueryHistory: async () => await ipcRenderer.invoke('getQueryHistory'),
-    addQueryToHistory: async (queryEntry: any) => 
-      await ipcRenderer.invoke('addQueryToHistory', queryEntry)
- 
+    addQueryToHistory: async (queryEntry: any) =>
+      await ipcRenderer.invoke('addQueryToHistory', queryEntry),
+    getPromptExtension: async () => await ipcRenderer.invoke('getPromptExtension'),
+    setPromptExtension: async (promptExtension: string) =>
+      await ipcRenderer.invoke('setPromptExtension', promptExtension)
   })
 } catch (error) {
   console.error(error)

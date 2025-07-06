@@ -10,7 +10,7 @@ export class GeminiAdapter implements LLMAdapter {
     this.client = new GoogleGenerativeAI(apiKey)
   }
 
-  async generateText({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): Promise<string> {
+  async generateQuery({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): Promise<string> {
     const generativeModel = this.client.getGenerativeModel({ 
       model,
       generationConfig: {
@@ -19,22 +19,13 @@ export class GeminiAdapter implements LLMAdapter {
       }
     })
     
-    const systemPrompt = `You are a SQL (postgres) and data visualization expert. Your job is to help the user write or modify a SQL query to retrieve the data they need.
-    Only retrieval queries are allowed.
-    Format the query in a way that is easy to read and understand.
-    Wrap table names in double quotes.
-    
-    IMPORTANT: Please respond with ONLY the SQL query as plain text. Do NOT use markdown formatting, code blocks, or any other formatting. Just return the raw SQL query.`
-    
-    const fullPrompt = `${systemPrompt}\n\nUser request: ${prompt}`
-    
-    const result = await generativeModel.generateContent(fullPrompt)
+    const result = await generativeModel.generateContent(prompt)
     const response = await result.response
     const text = response.text().trim()
     return stripMarkdownCodeBlocks(text)
   }
 
-  async *generateTextStream({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): AsyncIterable<string> {
+  async *generateQueryStream({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): AsyncIterable<string> {
     const generativeModel = this.client.getGenerativeModel({ 
       model,
       generationConfig: {
@@ -43,16 +34,7 @@ export class GeminiAdapter implements LLMAdapter {
       }
     })
     
-    const systemPrompt = `You are a SQL (postgres) and data visualization expert. Your job is to help the user write or modify a SQL query to retrieve the data they need.
-    Only retrieval queries are allowed.
-    Format the query in a way that is easy to read and understand.
-    Wrap table names in double quotes.
-    
-    IMPORTANT: Please respond with ONLY the SQL query as plain text. Do NOT use markdown formatting, code blocks, or any other formatting. Just return the raw SQL query.`
-    
-    const fullPrompt = `${systemPrompt}\n\nUser request: ${prompt}`
-    
-    const result = await generativeModel.generateContentStream(fullPrompt)
+    const result = await generativeModel.generateContentStream(prompt)
     
     let buffer = ''
     for await (const chunk of result.stream) {
