@@ -141,7 +141,7 @@ app.whenReady().then(() => {
     try {
       const llm = await getLLM(provider)
       const queryResponse = await llm.generateQuery({ prompt, ...opts })
-      return { error: null, data: queryResponse.query }
+      return { error: null, data: queryResponse }
     } catch (e: any) {
       return { error: e.message, data: null }
     }
@@ -190,7 +190,7 @@ app.whenReady().then(() => {
       
       return {
         error: null,
-        data: queryResponse.query
+        data: queryResponse
       }
     } catch (error: any) {
       return {

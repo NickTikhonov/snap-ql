@@ -10,7 +10,7 @@ declare global {
       generateQuery: (
         input: string,
         sqlQuery: string
-      ) => Promise<{ error: string | null; data: string }>
+      ) => Promise<{ error: string | null; data: QueryResponse }>
       generateWithLLM: (
         provider: 'openai' | 'gemini',
         prompt: string,

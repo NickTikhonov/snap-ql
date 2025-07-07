@@ -11,20 +11,23 @@ export class GeminiAdapter implements LLMAdapter {
   }
 
   async generateQuery({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): Promise<QueryResponse> {
-    const config = {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'object',
-        properties: {
-          query: { type: 'string' },
-          graphXColumn: { type: 'string' },
-          graphYColumns: { type: 'array', items: { type: 'string' } }
-        },
-        required: ['query']
+    const responseSchema = {
+      type: 'object',
+      properties: {
+        query: { type: 'string' },
+        graphXColumn: { type: 'string' },
+        graphYColumns: { type: 'array', items: { type: 'string' } }
       },
-      ...(temperature !== undefined && { temperature }),
-      ...(maxTokens !== undefined && { maxOutputTokens: maxTokens }),
+      required: ['query']
     }
+
+    const generationConfig = 
+      temperature !== undefined || maxTokens !== undefined
+        ? {
+            ...(temperature !== undefined && { temperature }),
+            ...(maxTokens !== undefined && { maxOutputTokens: maxTokens }),
+          }
+        : undefined
 
     const contents = [
       {
@@ -36,7 +39,11 @@ export class GeminiAdapter implements LLMAdapter {
     const response = await this.client.models.generateContent({
       model,
       contents,
-      generationConfig: config,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema,
+        ...(generationConfig ?? {})
+      }
     })
 
     const text = response.text.trim()
