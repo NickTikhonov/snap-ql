@@ -6,9 +6,15 @@ export interface LLMGenOptions {
   stream?: boolean
 }
 
+export type QueryResponse = {
+  query: string
+  graphXColumn?: string
+  graphYColumns?: string[]
+}
+
 export interface LLMAdapter {
   name: 'openai' | 'gemini'
-  generateQuery(opts: LLMGenOptions): Promise<string>
+  generateQuery(opts: LLMGenOptions): Promise<QueryResponse>
   generateQueryStream?(opts: LLMGenOptions): AsyncIterable<string>
 }
 

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import type { LLMAdapter, LLMGenOptions } from './types'
+import type { LLMAdapter, LLMGenOptions, QueryResponse } from './types'
 import { stripMarkdownCodeBlocks } from './types'
 
 export class GeminiAdapter implements LLMAdapter {
@@ -7,18 +7,24 @@ export class GeminiAdapter implements LLMAdapter {
   private client
   
   constructor(apiKey: string) {
-     
     this.client = new GoogleGenAI({ apiKey })
   }
 
-  async generateQuery({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): Promise<string> {
-    const config =
-      temperature !== undefined || maxTokens !== undefined
-        ? {
-            ...(temperature !== undefined && { temperature }),
-            ...(maxTokens   !== undefined && { maxOutputTokens: maxTokens }),
-          }
-        : undefined
+  async generateQuery({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): Promise<QueryResponse> {
+    const config = {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          graphXColumn: { type: 'string' },
+          graphYColumns: { type: 'array', items: { type: 'string' } }
+        },
+        required: ['query']
+      },
+      ...(temperature !== undefined && { temperature }),
+      ...(maxTokens !== undefined && { maxOutputTokens: maxTokens }),
+    }
 
     const contents = [
       {
@@ -30,11 +36,26 @@ export class GeminiAdapter implements LLMAdapter {
     const response = await this.client.models.generateContent({
       model,
       contents,
-      ...(config && { config }),
+      generationConfig: config,
     })
 
     const text = response.text.trim()
-    return stripMarkdownCodeBlocks(text)
+    
+    try {
+      const parsed = JSON.parse(text)
+      return {
+        query: stripMarkdownCodeBlocks(parsed.query),
+        graphXColumn: parsed.graphXColumn,
+        graphYColumns: parsed.graphYColumns
+      }
+    } catch (e) {
+      // Fallback: if JSON parsing fails, return just the query
+      return {
+        query: stripMarkdownCodeBlocks(text),
+        graphXColumn: undefined,
+        graphYColumns: undefined
+      }
+    }
   }
 
   async *generateQueryStream({ prompt, model = 'gemini-2.5-flash', temperature, maxTokens }: LLMGenOptions): AsyncIterable<string> {

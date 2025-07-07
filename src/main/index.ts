@@ -140,8 +140,8 @@ app.whenReady().then(() => {
   ipcMain.handle('generateWithLLM', async (_, provider, prompt, opts) => {
     try {
       const llm = await getLLM(provider)
-      const text = await llm.generateQuery({ prompt, ...opts })
-      return { error: null, data: text }
+      const queryResponse = await llm.generateQuery({ prompt, ...opts })
+      return { error: null, data: queryResponse.query }
     } catch (e: any) {
       return { error: e.message, data: null }
     }
@@ -179,17 +179,18 @@ app.whenReady().then(() => {
 
       format the query in a way that is easy to read and understand.
       ${dbType === 'postgres' ? 'wrap table names in double quotes' : ''}
+      if the query results can be effectively visualized using a graph, specify which column should be used for the x-axis (domain) and which column(s) should be used for the y-axis (range).
 
       Generate the query necessary to retrieve the data the user wants: ${input}`
       
-      const query = await llm.generateQuery({
+      const queryResponse = await llm.generateQuery({
         prompt: combinedPrompt,
         model: provider === 'openai' ? (await getOpenAiModel()) || 'gpt-4o' : (await getGeminiModel()) || 'gemini-2.5-flash'
       })
       
       return {
         error: null,
-        data: query
+        data: queryResponse.query
       }
     } catch (error: any) {
       return {

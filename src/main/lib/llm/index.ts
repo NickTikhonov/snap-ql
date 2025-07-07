@@ -29,4 +29,4 @@ export async function getLLM(provider: 'openai' | 'gemini'): Promise<LLMAdapter>
   return adapter
 }
 
-export type { LLMAdapter, LLMGenOptions } from './types' 
+export type { LLMAdapter, LLMGenOptions, QueryResponse } from './types' 
