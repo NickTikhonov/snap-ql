@@ -3,7 +3,6 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { Bot, Send, Sparkles } from 'lucide-react'
-import { useToast } from '../hooks/use-toast'
 
 interface AIChatProps {
   onUserQuery: (query: string) => void
@@ -15,7 +14,6 @@ export const AIChat = ({ onUserQuery, isGenerating }: AIChatProps) => {
 
   const handleGenerateQuery = async () => {
     onUserQuery(prompt)
-    setPrompt('')
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -38,7 +36,9 @@ export const AIChat = ({ onUserQuery, isGenerating }: AIChatProps) => {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Describe what you want to query (e.g., 'show me all users from last week')"
+            placeholder={
+              "Describe what you want to query (e.g., 'show me all users from last week')"
+            }
             className="flex-1 h-8 text-xs"
           />
 

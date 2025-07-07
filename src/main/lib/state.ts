@@ -7,6 +7,12 @@ const queryHistorySchema = z.object({
   id: z.string(),
   query: z.string(),
   results: z.array(z.any()),
+  graph: z
+    .object({
+      graphXColumn: z.string(),
+      graphYColumns: z.array(z.string())
+    })
+    .optional(),
   timestamp: z.string() // ISO string format
 })
 

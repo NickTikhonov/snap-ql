@@ -1,3 +1,5 @@
+import { QueryResponse } from '../main/lib/llm/types'
+
 declare global {
   interface Window {
     context: {
@@ -18,7 +20,7 @@ declare global {
           maxTokens: number
           stream: boolean
         }>
-      ) => Promise<{ error: string | null; data: string }>
+      ) => Promise<{ error: string | null; data: QueryResponse }>
       getOpenAiKey: () => Promise<string>
       setOpenAiKey: (openAiKey: string) => Promise<boolean>
       getOpenAiBaseUrl: () => Promise<string>

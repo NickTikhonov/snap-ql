@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { SQLEditor } from './components/SQLEditor'
@@ -7,25 +8,37 @@ import { Settings } from './components/Settings'
 import { Toaster } from './components/ui/toaster'
 import { useToast } from './hooks/use-toast'
 import { Button } from './components/ui/button'
-import { ThemeProvider } from './components/ui/theme-provider'
+import { ThemeProvider, useTheme } from './components/ui/theme-provider'
+import { Graph } from './components/Graph'
 
 interface QueryHistory {
   id: string
   query: string
   results: any[]
+  graph?: GraphMetadata // past: graphMetadata
   timestamp: Date
+}
+
+type GraphMetadata = {
+  graphXColumn: string
+  graphYColumns: string[]
 }
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'editor' | 'settings'>('editor')
   const [sqlQuery, setSqlQuery] = useState('SELECT * FROM information_schema.tables;')
+  const [graphMetadata, setGraphMetadata] = useState<GraphMetadata | null>(null)
   const [queryResults, setQueryResults] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [queryHistory, setQueryHistory] = useState<QueryHistory[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
+  const { theme } = useTheme()
+
   const { toast } = useToast()
+
+  const graphableData = queryResults.slice(0, 10000) // limit to 10k rows for performance
 
   // Load query history on startup
   useEffect(() => {
@@ -66,12 +79,13 @@ const Index = () => {
           id: Date.now().toString(),
           query: query,
           results: res.data,
+          graph: graphMetadata ?? undefined,
           timestamp: new Date()
         }
 
         // Update local state
         setQueryHistory((prev) => [historyEntry, ...prev.slice(0, 19)]) // Keep last 20 queries
-        
+
         // Persist to storage
         try {
           const historyEntryForStorage = {
@@ -93,6 +107,7 @@ const Index = () => {
 
   const handleAIQuery = async (userQuery: string) => {
     setIsGenerating(true)
+    setGraphMetadata(null)
     toast({
       title: 'Generating query...',
       description: 'The query is being generated...',
@@ -103,12 +118,18 @@ const Index = () => {
       if (res.error) {
         setError(res.error)
       } else {
-        setSqlQuery(res.data)
+        setSqlQuery(res.data.query)
+        if (res.data.graphXColumn && res.data.graphYColumns && res.data.graphYColumns.length > 0) {
+          setGraphMetadata({
+            graphXColumn: res.data.graphXColumn,
+            graphYColumns: res.data.graphYColumns
+          })
+        }
         toast({
           title: 'Query generated!',
           description: 'The query was generated successfully',
           duration: 1500,
-          action: <Button onClick={() => runQuery(res.data)}>Run!</Button>
+          action: <Button onClick={() => runQuery(res.data.query)}>Run!</Button>
         })
       }
     } catch (error: any) {
@@ -121,6 +142,7 @@ const Index = () => {
   const handleHistorySelect = (historyItem: QueryHistory) => {
     setSqlQuery(historyItem.query)
     setQueryResults(historyItem.results)
+    setGraphMetadata(historyItem.graph ?? null)
   }
 
   return (
@@ -152,6 +174,9 @@ const Index = () => {
                   />
                 </div>
                 {error && <div className="text-red-500">{error}</div>}
+                {graphMetadata && queryResults.length > 0 && (
+                  <Graph data={graphableData} graphMetadata={graphMetadata} />
+                )}
                 <div className="flex-1 min-h-0 flex-grow">
                   <ResultsTable results={queryResults} isLoading={isLoading} query={sqlQuery} />
                 </div>

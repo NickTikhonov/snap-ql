@@ -1,12 +1,13 @@
 # SnapQL <!-- omit in toc -->
 
-cursor for data ⚡️ - explore your sql db in seconds
+cursor for data ⚡️ - generate queries and charts in seconds
 
-https://github.com/user-attachments/assets/15da0076-7bc4-4a20-a65b-103838ce3bc5
+https://github.com/user-attachments/assets/e1c38ef9-4ee9-4d38-96ee-02584e9ef67c
 
 - generate schema-aware queries in seconds with AI
+- automatically chart your data 
 - supports any PostgreSQL and MySQL database
-- local desktop app - your database credentials don't leave your computer
+- local-first - your database credentials don't leave your computer
 - use your own OpenAI key
 
 💬 [Join the Telegram group to chat with the devs + share feedback!](https://t.me/+QJu4_a2yImo3OTY0)
