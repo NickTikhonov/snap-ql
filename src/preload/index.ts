@@ -41,9 +41,26 @@ try {
     getQueryHistory: async () => await ipcRenderer.invoke('getQueryHistory'),
     addQueryToHistory: async (queryEntry: any) =>
       await ipcRenderer.invoke('addQueryToHistory', queryEntry),
+    updateQueryHistory: async (queryId: string, updates: any) =>
+      await ipcRenderer.invoke('updateQueryHistory', queryId, updates),
+    getFavorites: async () => await ipcRenderer.invoke('getFavorites'),
+    addFavorite: async (favorite: any) => await ipcRenderer.invoke('addFavorite', favorite),
+    removeFavorite: async (favoriteId: string) =>
+      await ipcRenderer.invoke('removeFavorite', favoriteId),
+    updateFavorite: async (favoriteId: string, updates: any) =>
+      await ipcRenderer.invoke('updateFavorite', favoriteId, updates),
     getPromptExtension: async () => await ipcRenderer.invoke('getPromptExtension'),
     setPromptExtension: async (promptExtension: string) =>
-      await ipcRenderer.invoke('setPromptExtension', promptExtension)
+      await ipcRenderer.invoke('setPromptExtension', promptExtension),
+    getAiProvider: async () => await ipcRenderer.invoke('getAiProvider'),
+    setAiProvider: async (aiProvider: 'openai' | 'claude') =>
+      await ipcRenderer.invoke('setAiProvider', aiProvider),
+    getClaudeApiKey: async () => await ipcRenderer.invoke('getClaudeApiKey'),
+    setClaudeApiKey: async (claudeApiKey: string) =>
+      await ipcRenderer.invoke('setClaudeApiKey', claudeApiKey),
+    getClaudeModel: async () => await ipcRenderer.invoke('getClaudeModel'),
+    setClaudeModel: async (claudeModel: string) =>
+      await ipcRenderer.invoke('setClaudeModel', claudeModel)
   })
 } catch (error) {
   console.error(error)

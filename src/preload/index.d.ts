@@ -35,8 +35,19 @@ declare global {
       setLLMProvider: (provider: 'openai' | 'gemini') => Promise<boolean>
       getQueryHistory: () => Promise<any[]>
       addQueryToHistory: (queryEntry: any) => Promise<boolean>
+      updateQueryHistory: (queryId: string, updates: any) => Promise<boolean>
+      getFavorites: () => Promise<any[]>
+      addFavorite: (favorite: any) => Promise<boolean>
+      removeFavorite: (favoriteId: string) => Promise<boolean>
+      updateFavorite: (favoriteId: string, updates: any) => Promise<boolean>
       getPromptExtension: () => Promise<string>
       setPromptExtension: (promptExtension: string) => Promise<boolean>
+      getAiProvider: () => Promise<'openai' | 'claude'>
+      setAiProvider: (aiProvider: 'openai' | 'claude') => Promise<boolean>
+      getClaudeApiKey: () => Promise<string>
+      setClaudeApiKey: (claudeApiKey: string) => Promise<boolean>
+      getClaudeModel: () => Promise<string>
+      setClaudeModel: (claudeModel: string) => Promise<boolean>
     }
   }
 }

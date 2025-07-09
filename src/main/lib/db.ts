@@ -1,11 +1,11 @@
 import pg from 'pg'
-import mysql from 'mysql2/promise';
+import mysql from 'mysql2/promise'
 
 // check if it is a valid postgres or mysql connection string. testing only the first part of the connection string.
 // e.g.:
 // mysql:  mysql://user:pass@host/db?debug=true&charset=BIG5_CHINESE_CI&timezone=-0700
 // postgres: postgres://postgres:123456@127.0.0.1:5432/dummy
-function parseConnectionString(connectionString: string): 'postgres' | 'mysql' | null {
+export function parseConnectionString(connectionString: string): 'postgres' | 'mysql' | null {
   // split by // and check if the first part is postgres or mysql
   const parts = connectionString.split('//')
   if (parts.length > 0) {

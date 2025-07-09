@@ -12,6 +12,9 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { useTheme } from '../components/ui/theme-provider'
+import { GraphEditDialog } from './GraphEditDialog'
+import { Button } from '../components/ui/button'
+import { X } from 'lucide-react'
 
 export type GraphMetadata = {
   graphXColumn: string
@@ -21,6 +24,8 @@ export type GraphMetadata = {
 interface GraphProps {
   data: any[]
   graphMetadata: GraphMetadata
+  onMetadataChange?: (metadata: GraphMetadata) => void
+  onRemove?: () => void
 }
 
 function guessDataType(data: any[]): 'date' | 'number' | 'string' {
@@ -36,7 +41,7 @@ function guessDataType(data: any[]): 'date' | 'number' | 'string' {
   return 'string'
 }
 
-export const Graph = ({ data, graphMetadata }: GraphProps) => {
+export const Graph = ({ data, graphMetadata, onMetadataChange, onRemove }: GraphProps) => {
   const { theme } = useTheme()
 
   const orangeColors = [
@@ -81,13 +86,7 @@ export const Graph = ({ data, graphMetadata }: GraphProps) => {
         {graphMetadata?.graphYColumns.map((column, i) => {
           const color = orangeColors[i % orangeColors.length]
           return (
-            <Line
-              key={column}
-              type="monotone"
-              dataKey={column}
-              stroke={color}
-              strokeWidth={3}
-            />
+            <Line key={column} type="monotone" dataKey={column} stroke={color} strokeWidth={3} />
           )
         })}
       </LineChart>
@@ -121,8 +120,22 @@ export const Graph = ({ data, graphMetadata }: GraphProps) => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">Graph</CardTitle>
+        <div className="flex items-center gap-2">
+          {onMetadataChange && (
+            <GraphEditDialog
+              data={data}
+              currentMetadata={graphMetadata}
+              onSave={onMetadataChange}
+            />
+          )}
+          {onRemove && (
+            <Button variant="ghost" size="sm" onClick={onRemove}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

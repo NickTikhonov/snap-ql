@@ -14,7 +14,7 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin()]
   },
   renderer: {
     assetsInclude: 'src/renderer/assets/**',

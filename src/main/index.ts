@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../logo.png?asset'
@@ -13,17 +13,64 @@ import {
   setOpenAiModel,
   getQueryHistory,
   addQueryToHistory,
+  updateQueryHistory,
   setConnectionString,
   getPromptExtension,
   setPromptExtension,
-  getGeminiKey,
-  setGeminiKey,
-  getGeminiModel,
-  setGeminiModel,
-  getLLMProvider,
-  setLLMProvider
+  getAiProvider,
+  setAiProvider,
+  getClaudeApiKey,
+  setClaudeApiKey,
+  getClaudeModel,
+  setClaudeModel,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  updateFavorite
 } from './lib/state'
-import { getLLM } from './lib/llm'
+import { homedir } from 'os'
+import { generateQuery } from './lib/ai'
+
+function createMenu(): void {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Open Settings Folder',
+          click: () => {
+            const settingsPath = `${homedir()}/SnapQL`
+            shell.openPath(settingsPath)
+          }
+        },
+        { type: 'separator' },
+        process.platform === 'darwin'
+          ? { label: 'Quit SnapQL', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
+          : { label: 'Exit', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
+      ]
+    }
+  ]
+
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.getName(),
+      submenu: [
+        { label: 'About SnapQL', role: 'about' },
+        { type: 'separator' },
+        { label: 'Services', role: 'services', submenu: [] },
+        { type: 'separator' },
+        { label: 'Hide SnapQL', accelerator: 'Command+H', role: 'hide' },
+        { label: 'Hide Others', accelerator: 'Command+Shift+H', role: 'hideOthers' },
+        { label: 'Show All', role: 'unhide' },
+        { type: 'separator' },
+        { label: 'Quit', accelerator: 'Command+Q', click: () => app.quit() }
+      ]
+    })
+  }
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -32,7 +79,7 @@ function createWindow(): void {
     minWidth: 600,
     height: 670,
     show: false,
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     icon: icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -48,6 +95,41 @@ function createWindow(): void {
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
+  })
+
+  // Add context menu with copy/paste functionality
+  mainWindow.webContents.on('context-menu', (_, props) => {
+    const { selectionText, isEditable } = props
+    const contextMenuTemplate: MenuItemConstructorOptions[] = []
+
+    if (isEditable) {
+      contextMenuTemplate.push({
+        label: 'Cut',
+        accelerator: 'CmdOrCtrl+X',
+        role: 'cut'
+      })
+      contextMenuTemplate.push({
+        label: 'Copy',
+        accelerator: 'CmdOrCtrl+C',
+        role: 'copy'
+      })
+      contextMenuTemplate.push({
+        label: 'Paste',
+        accelerator: 'CmdOrCtrl+V',
+        role: 'paste'
+      })
+    } else if (selectionText) {
+      contextMenuTemplate.push({
+        label: 'Copy',
+        accelerator: 'CmdOrCtrl+C',
+        role: 'copy'
+      })
+    }
+
+    if (contextMenuTemplate.length > 0) {
+      const contextMenu = Menu.buildFromTemplate(contextMenuTemplate)
+      contextMenu.popup({ window: mainWindow })
+    }
   })
 
   // HMR for renderer base on electron-vite cli.
@@ -153,41 +235,32 @@ app.whenReady().then(() => {
     try {
       console.log('Generating query with input: ', input, 'and existing query: ', existingQuery)
       const connectionString = await getConnectionString()
-      const provider = await getLLMProvider()
-      
-      // Get table schema for context
-      const { getTableSchema } = await import('./lib/db')
-      const tableSchema = await getTableSchema(connectionString ?? '')
-      
-      const existing = existingQuery?.trim() || ''
-      
-      // Get the prompt extension for additional user instructions
-      const promptExtension = (await getPromptExtension()) || ''
-      
-      const dbType = 'postgres' // You can make this configurable later
-      
-      const llm = await getLLM(provider)
-      
-      // Combine system and prompt into a single prompt for the LLM adapter
-      const combinedPrompt = `You are a SQL (${dbType}) and data visualization expert. Your job is to help the user write or modify a SQL query to retrieve the data they need. The table schema is as follows:
-      ${tableSchema}
-      Only retrieval queries are allowed.
+      const aiProvider = await getAiProvider()
+      const promptExtension = await getPromptExtension()
 
-      ${existing.length > 0 ? `The user's existing query is: ${existing}` : ``}
+      let apiKey: string
+      let model: string | undefined
+      let openAiBaseUrl: string | undefined
 
-      ${promptExtension.length > 0 ? `Extra information: ${promptExtension}` : ``}
+      if (aiProvider === 'openai') {
+        apiKey = (await getOpenAiKey()) ?? ''
+        model = await getOpenAiModel()
+        openAiBaseUrl = await getOpenAiBaseUrl()
+      } else {
+        apiKey = (await getClaudeApiKey()) ?? ''
+        model = await getClaudeModel()
+      }
 
-      format the query in a way that is easy to read and understand.
-      ${dbType === 'postgres' ? 'wrap table names in double quotes' : ''}
-      if the query results can be effectively visualized using a graph, specify which column should be used for the x-axis (domain) and which column(s) should be used for the y-axis (range).
-
-      Generate the query necessary to retrieve the data the user wants: ${input}`
-      
-      const queryResponse = await llm.generateQuery({
-        prompt: combinedPrompt,
-        model: provider === 'openai' ? (await getOpenAiModel()) || 'gpt-4o' : (await getGeminiModel()) || 'gemini-2.5-flash'
-      })
-      
+      const query = await generateQuery(
+        input,
+        connectionString ?? '',
+        aiProvider,
+        apiKey,
+        existingQuery,
+        promptExtension ?? '',
+        openAiBaseUrl,
+        model
+      )
       return {
         error: null,
         data: queryResponse
@@ -239,12 +312,87 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('updateQueryHistory', async (_, queryId, updates) => {
+    try {
+      await updateQueryHistory(queryId, updates)
+      return true
+    } catch (error: any) {
+      console.error('Error updating query history:', error)
+      return false
+    }
+  })
+
+  // Favorites Handlers
+  ipcMain.handle('getFavorites', async () => {
+    try {
+      const favorites = await getFavorites()
+      return favorites
+    } catch (error: any) {
+      console.error('Error loading favorites:', error)
+      return []
+    }
+  })
+
+  ipcMain.handle('addFavorite', async (_, favorite) => {
+    try {
+      await addFavorite(favorite)
+      return true
+    } catch (error: any) {
+      console.error('Error adding favorite:', error)
+      return false
+    }
+  })
+
+  ipcMain.handle('removeFavorite', async (_, favoriteId) => {
+    try {
+      await removeFavorite(favoriteId)
+      return true
+    } catch (error: any) {
+      console.error('Error removing favorite:', error)
+      return false
+    }
+  })
+
+  ipcMain.handle('updateFavorite', async (_, favoriteId, updates) => {
+    try {
+      await updateFavorite(favoriteId, updates)
+      return true
+    } catch (error: any) {
+      console.error('Error updating favorite:', error)
+      return false
+    }
+  })
+
   ipcMain.handle('getPromptExtension', async () => {
     return (await getPromptExtension()) ?? ''
   })
 
   ipcMain.handle('setPromptExtension', async (_, promptExtension) => {
     await setPromptExtension(promptExtension)
+  })
+
+  ipcMain.handle('getAiProvider', async () => {
+    return await getAiProvider()
+  })
+
+  ipcMain.handle('setAiProvider', async (_, aiProvider) => {
+    await setAiProvider(aiProvider)
+  })
+
+  ipcMain.handle('getClaudeApiKey', async () => {
+    return (await getClaudeApiKey()) ?? ''
+  })
+
+  ipcMain.handle('setClaudeApiKey', async (_, claudeApiKey) => {
+    await setClaudeApiKey(claudeApiKey)
+  })
+
+  ipcMain.handle('getClaudeModel', async () => {
+    return (await getClaudeModel()) ?? ''
+  })
+
+  ipcMain.handle('setClaudeModel', async (_, claudeModel) => {
+    await setClaudeModel(claudeModel)
   })
 
   createWindow()
