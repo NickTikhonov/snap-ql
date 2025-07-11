@@ -16,6 +16,10 @@ import {
   setClaudeApiKey,
   getClaudeModel,
   setClaudeModel,
+  getGeminiApiKey,
+  setGeminiApiKey,
+  getGeminiModel,
+  setGeminiModel,
   // Connection management functions
   createConnection,
   editConnection,
@@ -165,6 +169,22 @@ app.whenReady().then(() => {
 
   ipcMain.handle('setClaudeModel', async (_, claudeModel) => {
     await setClaudeModel(claudeModel)
+  })
+
+  ipcMain.handle('getGeminiApiKey', async () => {
+    return (await getGeminiApiKey()) ?? ''
+  })
+
+  ipcMain.handle('setGeminiApiKey', async (_, geminiApiKey) => {
+    await setGeminiApiKey(geminiApiKey)
+  })
+
+  ipcMain.handle('getGeminiModel', async () => {
+    return (await getGeminiModel()) ?? ''
+  })
+
+  ipcMain.handle('setGeminiModel', async (_, geminiModel) => {
+    await setGeminiModel(geminiModel)
   })
 
   // Connection management handlers
@@ -335,9 +355,12 @@ app.whenReady().then(() => {
         apiKey = (await getOpenAiKey()) ?? ''
         model = await getOpenAiModel()
         openAiBaseUrl = await getOpenAiBaseUrl()
-      } else {
+      } else if (aiProvider === 'claude') {
         apiKey = (await getClaudeApiKey()) ?? ''
         model = await getClaudeModel()
+      } else {
+        apiKey = (await getGeminiApiKey()) ?? ''
+        model = await getGeminiModel()
       }
 
       const query = await generateQuery(
@@ -352,7 +375,7 @@ app.whenReady().then(() => {
       )
       return {
         error: null,
-        data: queryResponse
+        data: query
       }
     } catch (error: any) {
       return {

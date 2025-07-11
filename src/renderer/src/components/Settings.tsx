@@ -16,9 +16,10 @@ import { useToast } from '../hooks/use-toast'
 import { ModeToggle } from './ui/mode-toggle'
 
 export const Settings = () => {
-  const [aiProvider, setAiProvider] = useState<'openai' | 'claude'>('openai')
+  const [aiProvider, setAiProvider] = useState<'openai' | 'claude' | 'gemini'>('openai')
   const [openAIApiKey, setOpenAIApiKey] = useState<string>('')
   const [claudeApiKey, setClaudeApiKey] = useState<string>('')
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('')
   const [apiKeyError, setApiKeyError] = useState<string | null>(null)
   const [apiKeySuccess, setApiKeySuccess] = useState<string | null>(null)
   const [isSavingApiKey, setIsSavingApiKey] = useState(false)
@@ -28,6 +29,7 @@ export const Settings = () => {
   const [isSavingBaseUrl, setIsSavingBaseUrl] = useState(false)
   const [openAIModel, setOpenAIModel] = useState<string>('')
   const [claudeModel, setClaudeModel] = useState<string>('')
+  const [geminiModel, setGeminiModel] = useState<string>('')
   const [modelError, setModelError] = useState<string | null>(null)
   const [modelSuccess, setModelSuccess] = useState<string | null>(null)
   const [isSavingModel, setIsSavingModel] = useState(false)
@@ -108,48 +110,35 @@ export const Settings = () => {
     loadSavedModel()
   }, [toast])
 
-  // Load the saved LLM provider when the component mounts
-  useEffect(() => {
-    const loadSavedProvider = async () => {
-      try {
-        const savedProvider = await window.context.getLLMProvider()
-        setLLMProvider(savedProvider)
-      } catch (error: any) {
-        console.error('Failed to load LLM provider:', error)
-      }
-    }
-    loadSavedProvider()
-  }, [])
-
   // Load the saved Gemini API key when the component mounts
   useEffect(() => {
-    const loadSavedGeminiKey = async () => {
+    const loadSavedGeminiApiKey = async () => {
       try {
-        const savedGeminiKey = await window.context.getGeminiKey()
-        if (savedGeminiKey) {
-          setGeminiApiKey(savedGeminiKey)
+        const savedApiKey = await window.context.getGeminiApiKey()
+        if (savedApiKey) {
+          setGeminiApiKey(savedApiKey)
         }
       } catch (error: any) {
-        setGeminiKeyError('Failed to load the Gemini API key. Please try again.')
+        setApiKeyError('Failed to load the Gemini API key. Please try again.')
       }
     }
-    loadSavedGeminiKey()
-  }, [])
+    loadSavedGeminiApiKey()
+  }, [toast])
 
   // Load the saved Gemini model when the component mounts
   useEffect(() => {
     const loadSavedGeminiModel = async () => {
       try {
-        const savedGeminiModel = await window.context.getGeminiModel()
-        if (savedGeminiModel) {
-          setGeminiModel(savedGeminiModel)
+        const savedModel = await window.context.getGeminiModel()
+        if (savedModel) {
+          setGeminiModel(savedModel)
         }
       } catch (error: any) {
-        setGeminiModelError('Failed to load the Gemini model. Please try again.')
+        setModelError('Failed to load the Gemini model. Please try again.')
       }
     }
     loadSavedGeminiModel()
-  }, [])
+  }, [toast])
 
   // Load the saved Claude model when the component mounts
   useEffect(() => {
@@ -166,7 +155,7 @@ export const Settings = () => {
     loadSavedClaudeModel()
   }, [toast])
 
-  const updateAiProvider = async (provider: 'openai' | 'claude') => {
+  const updateAiProvider = async (provider: 'openai' | 'claude' | 'gemini') => {
     try {
       await window.context.setAiProvider(provider)
       setAiProvider(provider)
@@ -183,14 +172,17 @@ export const Settings = () => {
       if (aiProvider === 'openai') {
         await window.context.setOpenAiKey(openAIApiKey)
         setApiKeySuccess('OpenAI API key saved successfully.')
-      } else {
+      } else if (aiProvider === 'claude') {
         await window.context.setClaudeApiKey(claudeApiKey)
         setApiKeySuccess('Claude API key saved successfully.')
+      } else {
+        await window.context.setGeminiApiKey(geminiApiKey)
+        setApiKeySuccess('Gemini API key saved successfully.')
       }
       setApiKeyError(null)
     } catch (error: any) {
       setApiKeyError(
-        `Failed to save the ${aiProvider === 'openai' ? 'OpenAI' : 'Claude'} API key: ` +
+        `Failed to save the ${aiProvider === 'openai' ? 'OpenAI' : aiProvider === 'claude' ? 'Claude' : 'Gemini'} API key: ` +
         error.message
       )
     } finally {
@@ -221,14 +213,17 @@ export const Settings = () => {
       if (aiProvider === 'openai') {
         await window.context.setOpenAiModel(openAIModel)
         setModelSuccess('OpenAI model saved successfully.')
-      } else {
+      } else if (aiProvider === 'claude') {
         await window.context.setClaudeModel(claudeModel)
         setModelSuccess('Claude model saved successfully.')
+      } else {
+        await window.context.setGeminiModel(geminiModel)
+        setModelSuccess('Gemini model saved successfully.')
       }
       setModelError(null)
     } catch (error: any) {
       setModelError(
-        `Failed to save the ${aiProvider === 'openai' ? 'OpenAI' : 'Claude'} model: ` +
+        `Failed to save the ${aiProvider === 'openai' ? 'OpenAI' : aiProvider === 'claude' ? 'Claude' : 'Gemini'} model: ` +
         error.message
       )
     } finally {
@@ -268,6 +263,7 @@ export const Settings = () => {
               <SelectContent>
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="claude">Claude</SelectItem>
+                <SelectItem value="gemini">Gemini</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -279,13 +275,15 @@ export const Settings = () => {
             <Input
               id="api-key"
               type="text"
-              value={aiProvider === 'openai' ? openAIApiKey : claudeApiKey}
+              value={aiProvider === 'openai' ? openAIApiKey : aiProvider === 'claude' ? claudeApiKey : geminiApiKey}
               onChange={(e) =>
                 aiProvider === 'openai'
                   ? setOpenAIApiKey(e.target.value)
-                  : setClaudeApiKey(e.target.value)
+                  : aiProvider === 'claude'
+                    ? setClaudeApiKey(e.target.value)
+                    : setGeminiApiKey(e.target.value)
               }
-              placeholder={aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+              placeholder={aiProvider === 'openai' ? 'sk-...' : aiProvider === 'claude' ? 'sk-ant-...' : 'AIza...'}
               className="font-mono text-xs h-8"
             />
             <p className="text-xs text-muted-foreground">
@@ -302,7 +300,7 @@ export const Settings = () => {
                   </a>
                   .
                 </>
-              ) : (
+              ) : aiProvider === 'claude' ? (
                 <>
                   You can create an API key at{' '}
                   <a
@@ -312,6 +310,19 @@ export const Settings = () => {
                     className="underline"
                   >
                     Anthropic Console
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  You can create an API key at{' '}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    Google AI Studio
                   </a>
                   .
                 </>
@@ -325,7 +336,7 @@ export const Settings = () => {
             onClick={updateApiKey}
             disabled={
               isSavingApiKey ||
-              !(aiProvider === 'openai' ? openAIApiKey.trim() : claudeApiKey.trim())
+              !(aiProvider === 'openai' ? openAIApiKey.trim() : aiProvider === 'claude' ? claudeApiKey.trim() : geminiApiKey.trim())
             }
             className="flex items-center space-x-1.5 h-8 px-3 text-xs"
             size="sm"
@@ -385,13 +396,15 @@ export const Settings = () => {
                 <Input
                   id="model"
                   type="text"
-                  value={aiProvider === 'openai' ? openAIModel : claudeModel}
+                  value={aiProvider === 'openai' ? openAIModel : aiProvider === 'claude' ? claudeModel : geminiModel}
                   onChange={(e) =>
                     aiProvider === 'openai'
                       ? setOpenAIModel(e.target.value)
-                      : setClaudeModel(e.target.value)
+                      : aiProvider === 'claude'
+                        ? setClaudeModel(e.target.value)
+                        : setGeminiModel(e.target.value)
                   }
-                  placeholder={aiProvider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-20250514'}
+                  placeholder={aiProvider === 'openai' ? 'gpt-4o' : aiProvider === 'claude' ? 'claude-sonnet-4-20250514' : 'gemini-2.5-flash'}
                   className="font-mono text-xs h-8"
                   autoComplete="off"
                 />
@@ -401,10 +414,15 @@ export const Settings = () => {
                       Model ID to use for query generation. Leave empty to use gpt-4o (default).
                       Examples: gpt-4, gpt-3.5-turbo, gpt-4o-mini.
                     </>
-                  ) : (
+                  ) : aiProvider === 'claude' ? (
                     <>
                       Model ID to use for query generation. Leave empty to use
                       claude-sonnet-4-20250514 (default).
+                    </>
+                  ) : (
+                    <>
+                      Model ID to use for query generation. Leave empty to use
+                      gemini-2.5-flash (default). Examples: gemini-2.5-pro, gemini-2.5-flash.
                     </>
                   )}
                 </p>

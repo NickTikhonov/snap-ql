@@ -1,9 +1,8 @@
 import { OpenAIAdapter } from './openai'
-import { GeminiAdapter } from './gemini'
-import { getOpenAiKey, getOpenAiBaseUrl, getGeminiKey } from '../state'
+import { getOpenAiKey, getOpenAiBaseUrl } from '../state'
 import type { LLMAdapter } from './types'
 
-export async function getLLM(provider: 'openai' | 'gemini'): Promise<LLMAdapter> {
+export async function getLLM(provider: 'openai'): Promise<LLMAdapter> {
   let adapter: LLMAdapter
   switch (provider) {
     case 'openai': {
@@ -13,14 +12,6 @@ export async function getLLM(provider: 'openai' | 'gemini'): Promise<LLMAdapter>
         throw new Error('OpenAI API key is required')
       }
       adapter = new OpenAIAdapter(key, url)
-      break
-    }
-    case 'gemini': {
-      const key = await getGeminiKey()
-      if (!key) {
-        throw new Error('Gemini API key is required')
-      }
-      adapter = new GeminiAdapter(key)
       break
     }
     default:

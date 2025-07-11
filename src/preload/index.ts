@@ -17,7 +17,7 @@ try {
     setOpenAiModel: async (openAiModel: string) =>
       await ipcRenderer.invoke('setOpenAiModel', openAiModel),
     getAiProvider: async () => await ipcRenderer.invoke('getAiProvider'),
-    setAiProvider: async (aiProvider: 'openai' | 'claude') =>
+    setAiProvider: async (aiProvider: 'openai' | 'claude' | 'gemini') =>
       await ipcRenderer.invoke('setAiProvider', aiProvider),
     getClaudeApiKey: async () => await ipcRenderer.invoke('getClaudeApiKey'),
     setClaudeApiKey: async (claudeApiKey: string) =>
@@ -25,6 +25,12 @@ try {
     getClaudeModel: async () => await ipcRenderer.invoke('getClaudeModel'),
     setClaudeModel: async (claudeModel: string) =>
       await ipcRenderer.invoke('setClaudeModel', claudeModel),
+    getGeminiApiKey: async () => await ipcRenderer.invoke('getGeminiApiKey'),
+    setGeminiApiKey: async (geminiApiKey: string) =>
+      await ipcRenderer.invoke('setGeminiApiKey', geminiApiKey),
+    getGeminiModel: async () => await ipcRenderer.invoke('getGeminiModel'),
+    setGeminiModel: async (geminiModel: string) =>
+      await ipcRenderer.invoke('setGeminiModel', geminiModel),
 
     // Connection management
     createConnection: async (name: string, connectionMetadata: any) =>
