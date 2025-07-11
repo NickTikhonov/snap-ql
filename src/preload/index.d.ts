@@ -1,4 +1,4 @@
-import { QueryResponse } from '../main/lib/llm/types'
+import { QueryResponse } from '../main/lib/ai'
 
 declare global {
   interface Window {
