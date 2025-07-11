@@ -1,6 +1,7 @@
 import { generateObject } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { z } from 'zod'
 import { getTableSchema, parseConnectionString } from './db'
 
@@ -13,7 +14,7 @@ export type QueryResponse = {
 export async function generateQuery(
   input: string,
   connectionString: string,
-  aiProvider: 'openai' | 'claude',
+  aiProvider: 'openai' | 'claude' | 'gemini',
   apiKey: string,
   existingQuery: string,
   promptExtension: string,
@@ -45,6 +46,12 @@ export async function generateQuery(
       })
       modelToUse = model || 'claude-sonnet-4-20250514'
       aiModel = anthropic(modelToUse)
+    } else if (aiProvider === 'gemini') {
+      const google = createGoogleGenerativeAI({
+        apiKey: apiKey
+      })
+      modelToUse = model || 'gemini-2.5-flash'
+      aiModel = google(modelToUse)
     } else {
       throw new Error(`Unsupported AI provider: ${aiProvider}`)
     }

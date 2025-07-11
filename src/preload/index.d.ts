@@ -1,8 +1,4 @@
-export type QueryResponse = {
-  query: string
-  graphXColumn?: string
-  graphYColumns?: string[]
-}
+import { QueryResponse } from '../main/lib/ai'
 
 declare global {
   interface Window {
@@ -15,12 +11,16 @@ declare global {
       setOpenAiBaseUrl: (openAiBaseUrl: string) => Promise<void>
       getOpenAiModel: () => Promise<string>
       setOpenAiModel: (openAiModel: string) => Promise<void>
-      getAiProvider: () => Promise<'openai' | 'claude'>
-      setAiProvider: (aiProvider: 'openai' | 'claude') => Promise<void>
+      getAiProvider: () => Promise<'openai' | 'claude' | 'gemini'>
+      setAiProvider: (aiProvider: 'openai' | 'claude' | 'gemini') => Promise<void>
       getClaudeApiKey: () => Promise<string>
       setClaudeApiKey: (claudeApiKey: string) => Promise<void>
       getClaudeModel: () => Promise<string>
       setClaudeModel: (claudeModel: string) => Promise<void>
+      getGeminiApiKey: () => Promise<string>
+      setGeminiApiKey: (geminiApiKey: string) => Promise<void>
+      getGeminiModel: () => Promise<string>
+      setGeminiModel: (geminiModel: string) => Promise<void>
 
       // Connection management
       createConnection: (name: string, connectionMetadata: any) => Promise<void>

@@ -31,12 +31,14 @@ const favoritesSchema = z.object({
 
 // Global settings schema (AI provider settings only)
 const globalSettingsSchema = z.object({
-  aiProvider: z.enum(['openai', 'claude']).optional(),
+  aiProvider: z.enum(['openai', 'claude', 'gemini']).optional(),
   openAiKey: z.string().optional(),
   openAiBaseUrl: z.string().optional(),
   openAiModel: z.string().optional(),
   claudeApiKey: z.string().optional(),
-  claudeModel: z.string().optional()
+  claudeModel: z.string().optional(),
+  geminiApiKey: z.string().optional(),
+  geminiModel: z.string().optional()
 })
 
 // Connection settings schema
@@ -51,7 +53,9 @@ const defaultGlobalSettings: z.infer<typeof globalSettingsSchema> = {
   openAiBaseUrl: undefined,
   openAiModel: undefined,
   claudeApiKey: undefined,
-  claudeModel: undefined
+  claudeModel: undefined,
+  geminiApiKey: undefined,
+  geminiModel: undefined
 }
 
 function rootDir() {
@@ -194,7 +198,7 @@ export async function getAiProvider() {
   return settings.aiProvider || 'openai'
 }
 
-export async function setAiProvider(aiProvider: 'openai' | 'claude') {
+export async function setAiProvider(aiProvider: 'openai' | 'claude' | 'gemini') {
   const settings = await getGlobalSettings()
   settings.aiProvider = aiProvider
   await setGlobalSettings(settings)
@@ -219,6 +223,28 @@ export async function getClaudeModel() {
 export async function setClaudeModel(claudeModel: string) {
   const settings = await getGlobalSettings()
   settings.claudeModel = claudeModel
+  await setGlobalSettings(settings)
+}
+
+export async function getGeminiApiKey() {
+  const settings = await getGlobalSettings()
+  return settings.geminiApiKey
+}
+
+export async function setGeminiApiKey(geminiApiKey: string) {
+  const settings = await getGlobalSettings()
+  settings.geminiApiKey = geminiApiKey
+  await setGlobalSettings(settings)
+}
+
+export async function getGeminiModel() {
+  const settings = await getGlobalSettings()
+  return settings.geminiModel
+}
+
+export async function setGeminiModel(geminiModel: string) {
+  const settings = await getGlobalSettings()
+  settings.geminiModel = geminiModel
   await setGlobalSettings(settings)
 }
 

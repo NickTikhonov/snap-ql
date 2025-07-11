@@ -159,6 +159,7 @@ export async function getTableSchema(connectionString: string) {
     })
     .join('\n\n')
 
+  console.log('Table schema: ', schema)
   return schema
 }
 
