@@ -7,22 +7,7 @@ if (!process.contextIsolated) {
 try {
   contextBridge.exposeInMainWorld('context', {
     locale: navigator.language,
-    getConnectionString: async () => await ipcRenderer.invoke('getConnectionString'),
-    setConnectionString: async (connectionString: string) =>
-      await ipcRenderer.invoke('setConnectionString', connectionString),
-    runQuery: async (query: string) => await ipcRenderer.invoke('runQuery', query),
-    generateQuery: async (input: string, sqlQuery: string) =>
-      await ipcRenderer.invoke('generateQuery', input, sqlQuery),
-    generateWithLLM: async (
-      provider: 'openai' | 'gemini',
-      prompt: string,
-      opts?: Partial<{
-        model: string
-        temperature: number
-        maxTokens: number
-        stream: boolean
-      }>
-    ) => ipcRenderer.invoke('generateWithLLM', provider, prompt, opts),
+    // AI Provider settings
     getOpenAiKey: async () => await ipcRenderer.invoke('getOpenAiKey'),
     setOpenAiKey: async (openAiKey: string) => await ipcRenderer.invoke('setOpenAiKey', openAiKey),
     getOpenAiBaseUrl: async () => await ipcRenderer.invoke('getOpenAiBaseUrl'),
@@ -31,27 +16,6 @@ try {
     getOpenAiModel: async () => await ipcRenderer.invoke('getOpenAiModel'),
     setOpenAiModel: async (openAiModel: string) =>
       await ipcRenderer.invoke('setOpenAiModel', openAiModel),
-    getGeminiKey: async () => await ipcRenderer.invoke('getGeminiKey'),
-    setGeminiKey: async (geminiKey: string) => await ipcRenderer.invoke('setGeminiKey', geminiKey),
-    getGeminiModel: async () => await ipcRenderer.invoke('getGeminiModel'),
-    setGeminiModel: async (geminiModel: string) => await ipcRenderer.invoke('setGeminiModel', geminiModel),
-    getLLMProvider: async () => await ipcRenderer.invoke('getLLMProvider'),
-    setLLMProvider: async (provider: 'openai' | 'gemini') =>
-      await ipcRenderer.invoke('setLLMProvider', provider),
-    getQueryHistory: async () => await ipcRenderer.invoke('getQueryHistory'),
-    addQueryToHistory: async (queryEntry: any) =>
-      await ipcRenderer.invoke('addQueryToHistory', queryEntry),
-    updateQueryHistory: async (queryId: string, updates: any) =>
-      await ipcRenderer.invoke('updateQueryHistory', queryId, updates),
-    getFavorites: async () => await ipcRenderer.invoke('getFavorites'),
-    addFavorite: async (favorite: any) => await ipcRenderer.invoke('addFavorite', favorite),
-    removeFavorite: async (favoriteId: string) =>
-      await ipcRenderer.invoke('removeFavorite', favoriteId),
-    updateFavorite: async (favoriteId: string, updates: any) =>
-      await ipcRenderer.invoke('updateFavorite', favoriteId, updates),
-    getPromptExtension: async () => await ipcRenderer.invoke('getPromptExtension'),
-    setPromptExtension: async (promptExtension: string) =>
-      await ipcRenderer.invoke('setPromptExtension', promptExtension),
     getAiProvider: async () => await ipcRenderer.invoke('getAiProvider'),
     setAiProvider: async (aiProvider: 'openai' | 'claude') =>
       await ipcRenderer.invoke('setAiProvider', aiProvider),
@@ -60,7 +24,44 @@ try {
       await ipcRenderer.invoke('setClaudeApiKey', claudeApiKey),
     getClaudeModel: async () => await ipcRenderer.invoke('getClaudeModel'),
     setClaudeModel: async (claudeModel: string) =>
-      await ipcRenderer.invoke('setClaudeModel', claudeModel)
+      await ipcRenderer.invoke('setClaudeModel', claudeModel),
+
+    // Connection management
+    createConnection: async (name: string, connectionMetadata: any) =>
+      await ipcRenderer.invoke('createConnection', name, connectionMetadata),
+    editConnection: async (name: string, connectionMetadata: any) =>
+      await ipcRenderer.invoke('editConnection', name, connectionMetadata),
+    listConnections: async () => await ipcRenderer.invoke('listConnections'),
+    getConnection: async (name: string) => await ipcRenderer.invoke('getConnection', name),
+    deleteConnection: async (name: string) => await ipcRenderer.invoke('deleteConnection', name),
+    getConnectionHistory: async (name: string) =>
+      await ipcRenderer.invoke('getConnectionHistory', name),
+    addQueryToConnectionHistory: async (name: string, queryEntry: any) =>
+      await ipcRenderer.invoke('addQueryToConnectionHistory', name, queryEntry),
+    updateConnectionHistory: async (name: string, queryId: string, updates: any) =>
+      await ipcRenderer.invoke('updateConnectionHistory', name, queryId, updates),
+    getConnectionFavorites: async (name: string) =>
+      await ipcRenderer.invoke('getConnectionFavorites', name),
+    addConnectionFavorite: async (name: string, favorite: any) =>
+      await ipcRenderer.invoke('addConnectionFavorite', name, favorite),
+    removeConnectionFavorite: async (name: string, favoriteId: string) =>
+      await ipcRenderer.invoke('removeConnectionFavorite', name, favoriteId),
+    updateConnectionFavorite: async (name: string, favoriteId: string, updates: any) =>
+      await ipcRenderer.invoke('updateConnectionFavorite', name, favoriteId, updates),
+    getConnectionPromptExtension: async (name: string) =>
+      await ipcRenderer.invoke('getConnectionPromptExtension', name),
+    setConnectionPromptExtension: async (name: string, promptExtension: string) =>
+      await ipcRenderer.invoke('setConnectionPromptExtension', name, promptExtension),
+    runQueryForConnection: async (name: string, query: string) =>
+      await ipcRenderer.invoke('runQueryForConnection', name, query),
+    generateQueryForConnection: async (name: string, input: string, existingQuery: string) =>
+      await ipcRenderer.invoke('generateQueryForConnection', name, input, existingQuery),
+    testConnectionString: async (connectionString: string) =>
+      await ipcRenderer.invoke('testConnectionString', connectionString),
+    getDatabaseSchema: async (connectionName: string) =>
+      await ipcRenderer.invoke('getDatabaseSchema', connectionName),
+    getConnectionDatabaseType: async (connectionName: string) =>
+      await ipcRenderer.invoke('getConnectionDatabaseType', connectionName)
   })
 } catch (error) {
   console.error(error)

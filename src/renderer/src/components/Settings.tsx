@@ -11,16 +11,11 @@ import {
   SelectTrigger,
   SelectValue
 } from '../components/ui/select'
-import { TestTube, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useToast } from '../hooks/use-toast'
 import { ModeToggle } from './ui/mode-toggle'
-import { Textarea } from './ui/textarea'
 
 export const Settings = () => {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [isTesting, setIsTesting] = useState(false)
-  const [connectionString, setConnectionString] = useState<string>('')
   const [aiProvider, setAiProvider] = useState<'openai' | 'claude'>('openai')
   const [openAIApiKey, setOpenAIApiKey] = useState<string>('')
   const [claudeApiKey, setClaudeApiKey] = useState<string>('')
@@ -36,43 +31,9 @@ export const Settings = () => {
   const [modelError, setModelError] = useState<string | null>(null)
   const [modelSuccess, setModelSuccess] = useState<string | null>(null)
   const [isSavingModel, setIsSavingModel] = useState(false)
-  const [isOpenAIAdvancedOpen, setIsOpenAIAdvancedOpen] = useState(false)
-  const [isGeminiAdvancedOpen, setIsGeminiAdvancedOpen] = useState(false)
-  const [llmProvider, setLLMProvider] = useState<'openai' | 'gemini'>('openai')
-  const [geminiApiKey, setGeminiApiKey] = useState<string>('')
-  const [geminiKeyError, setGeminiKeyError] = useState<string | null>(null)
-  const [geminiKeySuccess, setGeminiKeySuccess] = useState<string | null>(null)
-  const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false)
-  const [geminiModel, setGeminiModel] = useState<string>('')
-  const [geminiModelError, setGeminiModelError] = useState<string | null>(null)
-  const [geminiModelSuccess, setGeminiModelSuccess] = useState<string | null>(null)
-  const [isSavingGeminiModel, setIsSavingGeminiModel] = useState(false)
-  const [promptExtension, setPromptExtension] = useState<string>('')
-  const [isSavingPromptExtension, setIsSavingPromptExtension] = useState(false)
-  const [promptExtensionError, setPromptExtensionError] = useState<string | null>(null)
-  const [promptExtensionSuccess, setPromptExtensionSuccess] = useState<string | null>(null)
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
   const { toast } = useToast()
-
-  // Load the saved connection string when the component mounts
-  useEffect(() => {
-    const loadSavedConnectionString = async () => {
-      try {
-        const savedConnectionString = await window.context.getConnectionString()
-        if (savedConnectionString) {
-          setConnectionString(savedConnectionString)
-        }
-      } catch (error) {
-        toast({
-          title: 'Error loading connection string',
-          description: 'Failed to load the connection string. Please try again.',
-          variant: 'destructive'
-        })
-      }
-    }
-
-    loadSavedConnectionString()
-  }, [toast])
 
   // Load the saved AI provider when the component mounts
   useEffect(() => {
@@ -205,42 +166,6 @@ export const Settings = () => {
     loadSavedClaudeModel()
   }, [toast])
 
-  // Load the saved prompt extension when the component mounts
-  useEffect(() => {
-    const loadSavedPromptExtension = async () => {
-      try {
-        const savedPromptExtension = await window.context.getPromptExtension()
-        if (savedPromptExtension) {
-          setPromptExtension(savedPromptExtension)
-        }
-      } catch (error: any) {
-        setPromptExtensionError('Failed to load the prompt extension. Please try again.')
-      }
-    }
-    loadSavedPromptExtension()
-  }, [toast])
-
-  const updateConnectionString = async () => {
-    setIsTesting(true)
-    setSuccessMessage(null)
-    setErrorMessage(null)
-    try {
-      const result = await window.context.setConnectionString(connectionString)
-      if (!result) {
-        throw new Error('Failed to save connection string')
-      }
-      setErrorMessage(null)
-      setSuccessMessage('Connection string saved successfully.')
-    } catch (error) {
-      console.error('Error saving connection string:', error)
-      setErrorMessage(
-        'Failed to connect to the database. Please check your connection string or server and try again.'
-      )
-    } finally {
-      setIsTesting(false)
-    }
-  }
-
   const updateAiProvider = async (provider: 'openai' | 'claude') => {
     try {
       await window.context.setAiProvider(provider)
@@ -311,119 +236,14 @@ export const Settings = () => {
     }
   }
 
-  const updateLLMProvider = async (provider: 'openai' | 'gemini') => {
-    try {
-      await window.context.setLLMProvider(provider)
-      setLLMProvider(provider)
-    } catch (error: any) {
-      toast({
-        title: 'Error saving LLM provider',
-        description: 'Failed to save the LLM provider: ' + error.message,
-        variant: 'destructive'
-      })
-    }
-  }
-
-  const updateGeminiApiKey = async () => {
-    setIsSavingGeminiKey(true)
-    setGeminiKeySuccess(null)
-    setGeminiKeyError(null)
-    try {
-      await window.context.setGeminiKey(geminiApiKey)
-      setGeminiKeyError(null)
-      setGeminiKeySuccess('Gemini API key saved successfully.')
-    } catch (error: any) {
-      setGeminiKeyError('Failed to save the Gemini API key: ' + error.message)
-    } finally {
-      setIsSavingGeminiKey(false)
-    }
-  }
-
-  const updateGeminiModel = async () => {
-    setIsSavingGeminiModel(true)
-    setGeminiModelSuccess(null)
-    setGeminiModelError(null)
-    try {
-      await window.context.setGeminiModel(geminiModel)
-      setGeminiModelError(null)
-      setGeminiModelSuccess('Gemini model saved successfully.')
-    } catch (error: any) {
-      setGeminiModelError('Failed to save the Gemini model: ' + error.message)
-    } finally {
-      setIsSavingGeminiModel(false)
-    }
-  }
-
-  const updatePromptExtension = async () => {
-    setIsSavingPromptExtension(true)
-    setPromptExtensionSuccess(null)
-    setPromptExtensionError(null)
-    try {
-      await window.context.setPromptExtension(promptExtension)
-      setPromptExtensionError(null)
-      setPromptExtensionSuccess('Prompt extension saved successfully.')
-    } catch (error: any) {
-      setPromptExtensionError('Failed to save the prompt extension: ' + error.message)
-    } finally {
-      setIsSavingPromptExtension(false)
-    }
-  }
-
   return (
     <div className="max-w-2xl space-y-4">
       <div>
         <h2 className="text-lg font-bold">Settings</h2>
         <p className="text-muted-foreground text-sm">
-          Configure your PostgreSQL database connection.
+          Configure your AI provider and application settings.
         </p>
       </div>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Database Connection</CardTitle>
-              <CardDescription className="text-xs">
-                Enter your MySQL or PostgreSQL connection URI to connect to your database.
-                <br />
-                <br />
-                <p className="text-xs text-muted-foreground">
-                  PostgreSQL: postgresql://username:password@hostname:port/database
-                  <br />
-                  MySQL: mysql://username:password@hostname:port/database
-                </p>
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
-          <div className="space-y-1.5">
-            <Label htmlFor="connection-string" className="text-xs">
-              Connection String
-            </Label>
-            <Input
-              id="connection-string"
-              type="password"
-              value={connectionString}
-              onChange={(e) => setConnectionString(e.target.value)}
-              placeholder="postgresql://username:password@hostname:port/database"
-              className="font-mono text-xs h-8"
-            />
-            {errorMessage && <p className="text-xs text-destructive">{errorMessage}</p>}
-            {successMessage && <p className="text-xs text-green-500">{successMessage}</p>}
-          </div>
-
-          <Button
-            onClick={updateConnectionString}
-            disabled={isTesting || !connectionString.trim()}
-            className="flex items-center space-x-1.5 h-8 px-3 text-xs"
-            size="sm"
-          >
-            <TestTube className="w-3.5 h-3.5" />
-            <span>{isTesting ? 'Testing Connection...' : 'Test & Set'}</span>
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="pb-3">
@@ -603,39 +423,6 @@ export const Settings = () => {
               </Button>
             </CollapsibleContent>
           </Collapsible>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Custom Prompt</CardTitle>
-          <CardDescription className="text-xs">
-            Add to the AI prompt. Use this field to add any additional information about your
-            database that isn&apos;t captured in the schema. This will help the AI generate more
-            accurate queries.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-3">
-          <Textarea
-            value={promptExtension}
-            onChange={(e) => setPromptExtension(e.target.value)}
-            placeholder="e.g. the table 'rooms' also tracks the front and backyard of the house for legacy reasons"
-            className="font-mono text-xs h-8"
-          />
-          {promptExtensionError && (
-            <p className="text-xs text-destructive">{promptExtensionError}</p>
-          )}
-          {promptExtensionSuccess && (
-            <p className="text-xs text-green-500">{promptExtensionSuccess}</p>
-          )}
-          <Button
-            onClick={updatePromptExtension}
-            disabled={isSavingPromptExtension}
-            className="flex items-center space-x-1.5 h-8 px-3 text-xs"
-            size="sm"
-          >
-            <span>{isSavingPromptExtension ? 'Saving...' : 'Save Prompt'}</span>
-          </Button>
         </CardContent>
       </Card>
 

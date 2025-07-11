@@ -64,6 +64,7 @@
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.1",
     "fs-extra": "^11.3.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.517.0",

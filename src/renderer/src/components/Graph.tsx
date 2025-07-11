@@ -13,8 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { useTheme } from '../components/ui/theme-provider'
 import { GraphEditDialog } from './GraphEditDialog'
-import { Button } from '../components/ui/button'
-import { X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export type GraphMetadata = {
   graphXColumn: string
@@ -25,7 +24,6 @@ interface GraphProps {
   data: any[]
   graphMetadata: GraphMetadata
   onMetadataChange?: (metadata: GraphMetadata) => void
-  onRemove?: () => void
 }
 
 function guessDataType(data: any[]): 'date' | 'number' | 'string' {
@@ -41,7 +39,7 @@ function guessDataType(data: any[]): 'date' | 'number' | 'string' {
   return 'string'
 }
 
-export const Graph = ({ data, graphMetadata, onMetadataChange, onRemove }: GraphProps) => {
+export const Graph = ({ data, graphMetadata, onMetadataChange }: GraphProps) => {
   const { theme } = useTheme()
 
   const orangeColors = [
@@ -130,17 +128,29 @@ export const Graph = ({ data, graphMetadata, onMetadataChange, onRemove }: Graph
               onSave={onMetadataChange}
             />
           )}
-          {onRemove && (
-            <Button variant="ghost" size="sm" onClick={onRemove}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          {chartCmp}
-        </ResponsiveContainer>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${xAxisType}-${graphMetadata.graphXColumn}-${graphMetadata.graphYColumns.join(
+              ','
+            )}`}
+            initial={{ opacity: 0, scale: 0.975 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.975 }}
+            transition={{
+              duration: 0.05,
+              type: 'spring',
+              stiffness: 800,
+              damping: 50
+            }}
+          >
+            <ResponsiveContainer width="100%" height={300}>
+              {chartCmp}
+            </ResponsiveContainer>
+          </motion.div>
+        </AnimatePresence>
       </CardContent>
     </Card>
   )

@@ -11,12 +11,12 @@ import {
 } from '../components/ui/table'
 import { Skeleton } from '../components/ui/skeleton'
 import { Badge } from '../components/ui/badge'
-import { ScrollArea } from '../components/ui/scroll-area'
 import { Button } from './ui/button'
 import { Clipboard, Code, BarChart3 } from 'lucide-react'
 import { useToast } from '@renderer/hooks/use-toast'
 import { GraphEditDialog } from './GraphEditDialog'
 import { GraphMetadata } from './Graph'
+import { motion } from 'framer-motion'
 
 interface ResultsTableProps {
   results: any[]
@@ -56,9 +56,24 @@ export const ResultsTable = ({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-2">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
+            {[...Array(12)].map((_, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ 
+                  delay: (Math.floor(index / 3) * 0.05) + ((index % 3) * 0.02),
+                  duration: 0.3,
+                  ease: "easeOut"
+                }}
+                className="flex space-x-2"
+              >
+                <Skeleton className="h-3 w-1/4" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-1/4" />
+                <Skeleton className="h-3 w-1/6" />
+              </motion.div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -84,7 +99,8 @@ export const ResultsTable = ({
   const columns = Object.keys(results[0])
 
   return (
-    <Card className="flex flex-grow flex-col min-h-0">
+    <Card className="flex flex-grow flex-col min-h-0 relative overflow-hidden">
+      
       <CardHeader className="flex flex-row items-center justify-between pb-2 flex-shrink-0">
         <div className="flex items-center space-x-2">
           <CardTitle className="text-sm">Query Results</CardTitle>
@@ -152,7 +168,19 @@ export const ResultsTable = ({
               </TableHeader>
               <TableBody>
                 {results.map((row, index) => (
-                  <TableRow key={index} className="hover:bg-muted/30">
+                  <motion.tr
+                    key={index}
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: Math.min(index * 0.0035, 0.05),
+                      duration: 0.033,
+                      type: 'spring',
+                      stiffness: 800,
+                      damping: 50
+                    }}
+                    className="hover:bg-muted/30 border-b"
+                  >
                     {columns.map((column) => (
                       <TableCell
                         key={column}
@@ -167,7 +195,7 @@ export const ResultsTable = ({
                         </div>
                       </TableCell>
                     ))}
-                  </TableRow>
+                  </motion.tr>
                 ))}
               </TableBody>
             </Table>

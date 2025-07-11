@@ -88,3 +88,4 @@ npm run build:unpack    # Build without packaging for testing
 ### AI Interaction Guidelines
 
 - Always generate an implementation plan and ask me to confirm before proceeding to implementation
+- When planning, think of the minimal amount of software that fulfils the requirements. Ruthlessly cut scope until you do the minimum required to fulfil the requirements. Do not come up with your own features or nice to haves.

@@ -2,8 +2,6 @@ import fs from 'fs-extra'
 import path from 'path'
 import { tmpdir } from 'os'
 import {
-  getConnectionString,
-  setConnectionString,
   getOpenAiKey,
   setOpenAiKey,
   getOpenAiBaseUrl,
@@ -16,16 +14,19 @@ import {
   setClaudeApiKey,
   getClaudeModel,
   setClaudeModel,
-  getPromptExtension,
-  setPromptExtension,
-  getQueryHistory,
-  setQueryHistory,
-  addQueryToHistory,
-  updateQueryHistory,
-  getFavorites,
-  addFavorite,
-  removeFavorite,
-  updateFavorite
+  createConnection,
+  editConnection,
+  listConnections,
+  getConnection,
+  deleteConnection,
+  getConnectionHistory,
+  addQueryToConnectionHistory,
+  getConnectionFavorites,
+  addConnectionFavorite,
+  removeConnectionFavorite,
+  getConnectionPromptExtension,
+  setConnectionPromptExtension,
+  getConnectionStringForConnection
 } from '../lib/state'
 
 describe('State Module Integration Tests', () => {
@@ -51,49 +52,29 @@ describe('State Module Integration Tests', () => {
     await fs.remove(testRootDir)
   })
 
-  describe('Settings Management', () => {
+  describe('AI Provider Settings', () => {
     const settingsPath = () => path.join(testRootDir, 'settings.json')
 
-    describe('Connection String', () => {
-      it('should return undefined for new installation', async () => {
-        const result = await getConnectionString()
-        expect(result).toBeUndefined()
+    describe('AI Provider', () => {
+      it('should return openai as default for new installation', async () => {
+        const result = await getAiProvider()
+        expect(result).toBe('openai')
 
         // Verify settings file was created with defaults
         expect(await fs.pathExists(settingsPath())).toBe(true)
         const settings = await fs.readJson(settingsPath())
-        expect(settings.connectionString).toBeUndefined()
         expect(settings.aiProvider).toBe('openai')
       })
 
-      it('should set and persist connection string', async () => {
-        const connectionString = 'postgresql://user:pass@localhost:5432/db'
+      it('should set and persist AI provider', async () => {
+        await setAiProvider('claude')
 
-        await setConnectionString(connectionString)
+        const retrieved = await getAiProvider()
+        expect(retrieved).toBe('claude')
 
-        // Verify file was written
-        expect(await fs.pathExists(settingsPath())).toBe(true)
+        // Verify persistence
         const settings = await fs.readJson(settingsPath())
-        expect(settings.connectionString).toBe(connectionString)
-
-        // Verify retrieval works
-        const retrieved = await getConnectionString()
-        expect(retrieved).toBe(connectionString)
-      })
-
-      it('should update existing connection string', async () => {
-        const firstConnection = 'postgresql://user1:pass@localhost:5432/db1'
-        const secondConnection = 'postgresql://user2:pass@localhost:5432/db2'
-
-        await setConnectionString(firstConnection)
-        await setConnectionString(secondConnection)
-
-        const result = await getConnectionString()
-        expect(result).toBe(secondConnection)
-
-        // Verify file contains updated value
-        const settings = await fs.readJson(settingsPath())
-        expect(settings.connectionString).toBe(secondConnection)
+        expect(settings.aiProvider).toBe('claude')
       })
     })
 
@@ -153,7 +134,7 @@ describe('State Module Integration Tests', () => {
       })
 
       it('should handle Claude model operations', async () => {
-        const model = 'claude-3-5-sonnet-20241022'
+        const model = 'claude-3-opus'
 
         await setClaudeModel(model)
 
@@ -165,355 +146,185 @@ describe('State Module Integration Tests', () => {
         expect(settings.claudeModel).toBe(model)
       })
     })
+  })
 
-    describe('AI Provider', () => {
-      it('should default to openai', async () => {
-        const provider = await getAiProvider()
-        expect(provider).toBe('openai')
+  describe('Connection Management', () => {
+    const testConnection = {
+      connectionString: 'postgresql://user:pass@localhost:5432/testdb',
+      promptExtension: 'Test database with metric units'
+    }
+
+    describe('createConnection', () => {
+      it('should create a new connection', async () => {
+        await createConnection('test-connection', testConnection)
+
+        const connections = await listConnections()
+        expect(connections).toContain('test-connection')
+
+        const connection = await getConnection('test-connection')
+        expect(connection.connectionString).toBe(testConnection.connectionString)
+        expect(connection.promptExtension).toBe(testConnection.promptExtension)
       })
 
-      it('should set and persist AI provider', async () => {
-        await setAiProvider('claude')
+      it('should initialize empty history and favorites', async () => {
+        await createConnection('test-connection', testConnection)
 
-        const retrieved = await getAiProvider()
-        expect(retrieved).toBe('claude')
+        const history = await getConnectionHistory('test-connection')
+        expect(history).toEqual([])
 
-        // Verify persistence
-        const settings = await fs.readJson(settingsPath())
-        expect(settings.aiProvider).toBe('claude')
+        const favorites = await getConnectionFavorites('test-connection')
+        expect(favorites).toEqual([])
+      })
+
+      it('should fail if connection already exists', async () => {
+        await createConnection('test-connection', testConnection)
+
+        await expect(createConnection('test-connection', testConnection)).rejects.toThrow(
+          "Connection 'test-connection' already exists"
+        )
       })
     })
 
-    describe('Prompt Extension', () => {
-      it('should handle prompt extension operations', async () => {
-        const extension = 'Custom prompt extension for testing'
+    describe('editConnection', () => {
+      it('should update existing connection', async () => {
+        await createConnection('test-connection', testConnection)
 
-        await setPromptExtension(extension)
+        const updatedConnection = {
+          connectionString: 'postgresql://newuser:newpass@localhost:5432/newdb',
+          promptExtension: 'Updated prompt'
+        }
 
-        const retrieved = await getPromptExtension()
-        expect(retrieved).toBe(extension)
+        await editConnection('test-connection', updatedConnection)
 
-        // Verify persistence
-        const settings = await fs.readJson(settingsPath())
-        expect(settings.promptExtension).toBe(extension)
+        const connection = await getConnection('test-connection')
+        expect(connection.connectionString).toBe(updatedConnection.connectionString)
+        expect(connection.promptExtension).toBe(updatedConnection.promptExtension)
+      })
+
+      it('should fail if connection does not exist', async () => {
+        await expect(editConnection('non-existent', testConnection)).rejects.toThrow(
+          "Connection 'non-existent' not found"
+        )
+      })
+    })
+
+    describe('Connection History', () => {
+      const testQuery = {
+        id: '123',
+        query: 'SELECT * FROM users',
+        results: [{ id: 1, name: 'Test' }],
+        timestamp: new Date().toISOString()
+      }
+
+      beforeEach(async () => {
+        await createConnection('test-connection', testConnection)
+      })
+
+      it('should add query to connection history', async () => {
+        await addQueryToConnectionHistory('test-connection', testQuery)
+
+        const history = await getConnectionHistory('test-connection')
+        expect(history).toHaveLength(1)
+        expect(history[0]).toMatchObject({
+          id: testQuery.id,
+          query: testQuery.query,
+          results: testQuery.results
+        })
+      })
+
+      it('should maintain max 20 queries in history', async () => {
+        // Add 25 queries
+        for (let i = 0; i < 25; i++) {
+          await addQueryToConnectionHistory('test-connection', {
+            ...testQuery,
+            id: i.toString(),
+            query: `SELECT ${i} FROM test`
+          })
+        }
+
+        const history = await getConnectionHistory('test-connection')
+        expect(history).toHaveLength(20)
+        expect(history[0].id).toBe('24') // Most recent
+        expect(history[19].id).toBe('5') // Oldest kept
+      })
+    })
+
+    describe('Connection Favorites', () => {
+      const testFavorite = {
+        id: '456',
+        query: 'SELECT * FROM products',
+        results: [{ id: 1, name: 'Product' }],
+        timestamp: new Date().toISOString()
+      }
+
+      beforeEach(async () => {
+        await createConnection('test-connection', testConnection)
+      })
+
+      it('should add favorite to connection', async () => {
+        await addConnectionFavorite('test-connection', testFavorite)
+
+        const favorites = await getConnectionFavorites('test-connection')
+        expect(favorites).toHaveLength(1)
+        expect(favorites[0]).toMatchObject({
+          id: testFavorite.id,
+          query: testFavorite.query
+        })
+      })
+
+      it('should remove favorite from connection', async () => {
+        await addConnectionFavorite('test-connection', testFavorite)
+        await removeConnectionFavorite('test-connection', testFavorite.id)
+
+        const favorites = await getConnectionFavorites('test-connection')
+        expect(favorites).toHaveLength(0)
+      })
+    })
+
+    describe('Connection Prompt Extension', () => {
+      beforeEach(async () => {
+        await createConnection('test-connection', testConnection)
+      })
+
+      it('should get connection prompt extension', async () => {
+        const prompt = await getConnectionPromptExtension('test-connection')
+        expect(prompt).toBe(testConnection.promptExtension)
+      })
+
+      it('should update connection prompt extension', async () => {
+        const newPrompt = 'Updated prompt extension'
+        await setConnectionPromptExtension('test-connection', newPrompt)
+
+        const prompt = await getConnectionPromptExtension('test-connection')
+        expect(prompt).toBe(newPrompt)
       })
 
       it('should handle empty prompt extension', async () => {
-        await setPromptExtension('')
+        await setConnectionPromptExtension('test-connection', '')
 
-        const retrieved = await getPromptExtension()
-        expect(retrieved).toBeUndefined()
-
-        // Verify persistence
-        const settings = await fs.readJson(settingsPath())
-        expect(settings.promptExtension).toBeUndefined()
-      })
-
-      it('should handle whitespace-only prompt extension', async () => {
-        await setPromptExtension('   ')
-
-        const retrieved = await getPromptExtension()
-        expect(retrieved).toBeUndefined()
-
-        // Verify persistence
-        const settings = await fs.readJson(settingsPath())
-        expect(settings.promptExtension).toBeUndefined()
+        const prompt = await getConnectionPromptExtension('test-connection')
+        expect(prompt).toBeUndefined()
       })
     })
 
-    describe('Settings File Format', () => {
-      it('should create properly formatted JSON file', async () => {
-        await setConnectionString('test-connection')
-        await setOpenAiKey('test-key')
-        await setAiProvider('claude')
+    describe('deleteConnection', () => {
+      it('should delete existing connection', async () => {
+        await createConnection('test-connection', testConnection)
+        await deleteConnection('test-connection')
 
-        const fileContent = await fs.readFile(settingsPath(), 'utf8')
+        const connections = await listConnections()
+        expect(connections).not.toContain('test-connection')
 
-        // Should be properly formatted JSON with 2-space indentation
-        expect(fileContent).toContain('{\n  "connectionString": "test-connection"')
-        expect(fileContent).toContain('  "aiProvider": "claude"')
-        expect(fileContent).toContain('  "openAiKey": "test-key"')
-
-        // Should be valid JSON
-        const parsed = JSON.parse(fileContent)
-        expect(parsed).toBeInstanceOf(Object)
-      })
-    })
-  })
-
-  describe('History Management', () => {
-    const historyPath = () => path.join(testRootDir, 'history.json')
-
-    const mockQuery = {
-      id: 'test-query-1',
-      query: 'SELECT * FROM users',
-      results: [
-        { id: 1, name: 'John' },
-        { id: 2, name: 'Jane' }
-      ],
-      timestamp: '2025-01-01T00:00:00.000Z'
-    }
-
-    const mockQueryWithGraph = {
-      id: 'test-query-2',
-      query: 'SELECT created_at, count(*) FROM users GROUP BY created_at',
-      results: [{ created_at: '2025-01-01', count: 5 }],
-      graph: {
-        graphXColumn: 'created_at',
-        graphYColumns: ['count']
-      },
-      timestamp: '2025-01-01T01:00:00.000Z'
-    }
-
-    describe('getQueryHistory', () => {
-      it('should return empty array for new installation', async () => {
-        const result = await getQueryHistory()
-
-        expect(result).toEqual([])
-
-        // Verify history file was created
-        expect(await fs.pathExists(historyPath())).toBe(true)
-        const history = await fs.readJson(historyPath())
-        expect(history).toEqual([])
+        await expect(getConnection('test-connection')).rejects.toThrow(
+          "Connection 'test-connection' not found"
+        )
       })
 
-      it('should return existing history', async () => {
-        // Pre-populate history file
-        await fs.writeJson(historyPath(), [mockQuery, mockQueryWithGraph])
-
-        const result = await getQueryHistory()
-
-        expect(result).toEqual([mockQuery, mockQueryWithGraph])
+      it('should fail if connection does not exist', async () => {
+        await expect(deleteConnection('non-existent')).rejects.toThrow(
+          "Connection 'non-existent' not found"
+        )
       })
-    })
-
-    describe('setQueryHistory', () => {
-      it('should write history to file', async () => {
-        const history = [mockQuery, mockQueryWithGraph]
-
-        await setQueryHistory(history)
-
-        // Verify file was written
-        expect(await fs.pathExists(historyPath())).toBe(true)
-        const savedHistory = await fs.readJson(historyPath())
-        expect(savedHistory).toEqual(history)
-      })
-    })
-
-    describe('addQueryToHistory', () => {
-      it('should add query to beginning of empty history', async () => {
-        await addQueryToHistory(mockQuery)
-
-        const history = await fs.readJson(historyPath())
-        expect(history).toEqual([mockQuery])
-      })
-
-      it('should add query to beginning of existing history', async () => {
-        await fs.writeJson(historyPath(), [mockQueryWithGraph])
-
-        await addQueryToHistory(mockQuery)
-
-        const history = await fs.readJson(historyPath())
-        expect(history).toEqual([mockQuery, mockQueryWithGraph])
-      })
-
-      it('should limit history to 20 queries', async () => {
-        // Create 20 existing queries
-        const existingQueries = Array.from({ length: 20 }, (_, i) => ({
-          id: `query-${i}`,
-          query: `SELECT ${i}`,
-          results: [],
-          timestamp: new Date().toISOString()
-        }))
-
-        await fs.writeJson(historyPath(), existingQueries)
-
-        await addQueryToHistory(mockQuery)
-
-        const history = await fs.readJson(historyPath())
-        expect(history).toHaveLength(20)
-        expect(history[0]).toEqual(mockQuery)
-        expect(history[19]).toEqual(existingQueries[18]) // Last query should be dropped
-      })
-    })
-
-    describe('updateQueryHistory', () => {
-      it('should update existing query', async () => {
-        await fs.writeJson(historyPath(), [mockQuery, mockQueryWithGraph])
-
-        const updates = {
-          graph: {
-            graphXColumn: 'id',
-            graphYColumns: ['name']
-          }
-        }
-
-        await updateQueryHistory(mockQuery.id, updates)
-
-        const history = await fs.readJson(historyPath())
-        expect(history[0]).toEqual({ ...mockQuery, ...updates })
-        expect(history[1]).toEqual(mockQueryWithGraph)
-      })
-
-      it('should not modify history if query not found', async () => {
-        await fs.writeJson(historyPath(), [mockQuery])
-
-        await updateQueryHistory('non-existent-id', { query: 'updated' })
-
-        const history = await fs.readJson(historyPath())
-        expect(history).toEqual([mockQuery])
-      })
-    })
-  })
-
-  describe('Favorites Management', () => {
-    const favoritesPath = () => path.join(testRootDir, 'favorites.json')
-
-    const mockFavorite = {
-      id: 'fav-1',
-      query: 'SELECT * FROM favorite_queries',
-      results: [{ id: 1, name: 'Test' }],
-      timestamp: '2025-01-01T00:00:00.000Z'
-    }
-
-    describe('getFavorites', () => {
-      it('should return empty array when no favorites file exists', async () => {
-        const result = await getFavorites()
-
-        expect(result).toEqual([])
-        expect(await fs.pathExists(favoritesPath())).toBe(false)
-      })
-
-      it('should return existing favorites', async () => {
-        await fs.writeJson(favoritesPath(), [mockFavorite])
-
-        const result = await getFavorites()
-
-        expect(result).toEqual([mockFavorite])
-      })
-    })
-
-    describe('addFavorite', () => {
-      it('should create favorites file and add favorite', async () => {
-        await addFavorite(mockFavorite)
-
-        expect(await fs.pathExists(favoritesPath())).toBe(true)
-        const favorites = await fs.readJson(favoritesPath())
-        expect(favorites).toEqual([mockFavorite])
-      })
-
-      it('should add favorite to beginning of existing list', async () => {
-        const existingFavorite = { ...mockFavorite, id: 'fav-2', query: 'SELECT 2' }
-        await fs.writeJson(favoritesPath(), [existingFavorite])
-
-        await addFavorite(mockFavorite)
-
-        const favorites = await fs.readJson(favoritesPath())
-        expect(favorites).toEqual([mockFavorite, existingFavorite])
-      })
-    })
-
-    describe('removeFavorite', () => {
-      it('should remove favorite by ID', async () => {
-        const favorite2 = { ...mockFavorite, id: 'fav-2', query: 'SELECT 2' }
-        await fs.writeJson(favoritesPath(), [mockFavorite, favorite2])
-
-        await removeFavorite('fav-2')
-
-        const favorites = await fs.readJson(favoritesPath())
-        expect(favorites).toEqual([mockFavorite])
-      })
-
-      it('should not modify favorites if ID not found', async () => {
-        await fs.writeJson(favoritesPath(), [mockFavorite])
-
-        await removeFavorite('non-existent-id')
-
-        const favorites = await fs.readJson(favoritesPath())
-        expect(favorites).toEqual([mockFavorite])
-      })
-    })
-
-    describe('updateFavorite', () => {
-      it('should update existing favorite', async () => {
-        await fs.writeJson(favoritesPath(), [mockFavorite])
-
-        const updates = { query: 'SELECT * FROM updated_query' }
-        await updateFavorite(mockFavorite.id, updates)
-
-        const favorites = await fs.readJson(favoritesPath())
-        expect(favorites).toEqual([{ ...mockFavorite, ...updates }])
-      })
-
-      it('should not modify favorites if ID not found', async () => {
-        await fs.writeJson(favoritesPath(), [mockFavorite])
-
-        await updateFavorite('non-existent-id', { query: 'updated' })
-
-        const favorites = await fs.readJson(favoritesPath())
-        expect(favorites).toEqual([mockFavorite])
-      })
-    })
-  })
-
-  describe('Migration Tests', () => {
-    const settingsPath = () => path.join(testRootDir, 'settings.json')
-    const historyPath = () => path.join(testRootDir, 'history.json')
-
-    it('should migrate history from settings.json to history.json', async () => {
-      const oldSettingsWithHistory = {
-        connectionString: 'postgresql://test',
-        queryHistory: [
-          {
-            id: 'migrated-query',
-            query: 'SELECT * FROM legacy',
-            results: [],
-            timestamp: '2025-01-01T00:00:00.000Z'
-          }
-        ]
-      }
-
-      await fs.writeJson(settingsPath(), oldSettingsWithHistory)
-
-      // Trigger migration by accessing history
-      const history = await getQueryHistory()
-
-      // Verify migration occurred
-      expect(history).toEqual(oldSettingsWithHistory.queryHistory)
-
-      // Verify history file was created
-      expect(await fs.pathExists(historyPath())).toBe(true)
-      const historyFile = await fs.readJson(historyPath())
-      expect(historyFile).toEqual(oldSettingsWithHistory.queryHistory)
-
-      // Verify history was removed from settings
-      const settings = await fs.readJson(settingsPath())
-      expect(settings.queryHistory).toBeUndefined()
-      expect(settings.connectionString).toBe('postgresql://test')
-    })
-
-    it('should not migrate if history.json already exists', async () => {
-      const existingHistory = [
-        { id: 'existing', query: 'SELECT 1', results: [], timestamp: '2025-01-01T00:00:00.000Z' }
-      ]
-      const settingsWithHistory = {
-        connectionString: 'postgresql://test',
-        queryHistory: [
-          { id: 'old', query: 'SELECT 2', results: [], timestamp: '2025-01-01T00:00:00.000Z' }
-        ]
-      }
-
-      await fs.writeJson(historyPath(), existingHistory)
-      await fs.writeJson(settingsPath(), settingsWithHistory)
-
-      const history = await getQueryHistory()
-
-      // Should return existing history, not migrate
-      expect(history).toEqual(existingHistory)
-
-      // Settings should remain unchanged
-      const settings = await fs.readJson(settingsPath())
-      expect(settings.queryHistory).toEqual(settingsWithHistory.queryHistory)
     })
   })
 })

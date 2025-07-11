@@ -5,6 +5,7 @@ import { Play, Loader2 } from 'lucide-react'
 import CodeMirror from '@uiw/react-codemirror'
 import { sql, SQLDialect } from '@codemirror/lang-sql'
 import { useTheme } from './ui/theme-provider'
+import { motion } from 'framer-motion'
 
 interface SQLEditorProps {
   value: string
@@ -16,7 +17,8 @@ interface SQLEditorProps {
 export const SQLEditor = ({ value, onChange, onRun, isLoading }: SQLEditorProps) => {
   const { theme } = useTheme()
   return (
-    <Card>
+    <div className="rounded-lg">
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-base">SQL Query Editor</CardTitle>
         <Button
@@ -53,5 +55,6 @@ export const SQLEditor = ({ value, onChange, onRun, isLoading }: SQLEditorProps)
         {/* /> */}
       </CardContent>
     </Card>
+    </div>
   )
 }

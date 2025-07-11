@@ -162,3 +162,110 @@ export async function getTableSchema(connectionString: string) {
   console.log('Table schema: ', schema)
   return schema
 }
+
+export interface TableSchema {
+  tableName: string
+  columns: ColumnInfo[]
+}
+
+export interface ColumnInfo {
+  columnName: string
+  dataType: string
+  isNullable: boolean
+  isPrimaryKey: boolean
+  isUnique: boolean
+  defaultValue: string | null
+  maxLength: number | null
+}
+
+export async function getDatabaseSchema(connectionString: string): Promise<TableSchema[]> {
+  const dbType = parseConnectionString(connectionString)
+  if (!dbType) {
+    throw new Error('Invalid connection string')
+  }
+
+  const postgresSchemaQuery = `
+    SELECT 
+      t.table_name,
+      c.column_name,
+      c.data_type,
+      c.character_maximum_length,
+      c.is_nullable,
+      c.column_default,
+      CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN true ELSE false END as is_primary_key,
+      CASE WHEN tc.constraint_type = 'UNIQUE' THEN true ELSE false END as is_unique
+    FROM 
+      information_schema.tables t
+    JOIN 
+      information_schema.columns c ON t.table_name = c.table_name
+    LEFT JOIN 
+      information_schema.key_column_usage kcu ON t.table_name = kcu.table_name AND c.column_name = kcu.column_name
+    LEFT JOIN 
+      information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name
+    WHERE 
+      t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+    ORDER BY 
+      t.table_name, c.ordinal_position;
+  `
+
+  const mysqlSchemaQuery = `
+    SELECT 
+      t.TABLE_NAME AS table_name,
+      c.COLUMN_NAME AS column_name,
+      c.DATA_TYPE AS data_type,
+      c.CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,
+      c.IS_NULLABLE AS is_nullable,
+      c.COLUMN_DEFAULT AS column_default,
+      CASE WHEN tc.CONSTRAINT_TYPE = 'PRIMARY KEY' THEN true ELSE false END as is_primary_key,
+      CASE WHEN tc.CONSTRAINT_TYPE = 'UNIQUE' THEN true ELSE false END as is_unique
+    FROM 
+      information_schema.tables t
+    JOIN 
+      information_schema.columns c ON t.TABLE_NAME = c.TABLE_NAME
+    LEFT JOIN 
+      information_schema.KEY_COLUMN_USAGE kcu ON t.TABLE_NAME = kcu.TABLE_NAME AND c.COLUMN_NAME = kcu.COLUMN_NAME
+    LEFT JOIN 
+      information_schema.TABLE_CONSTRAINTS tc ON kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+    WHERE 
+      t.TABLE_SCHEMA = DATABASE() AND t.TABLE_TYPE = 'BASE TABLE'
+    ORDER BY 
+      t.TABLE_NAME, c.ORDINAL_POSITION;
+  `
+
+  const schemaQuery = dbType === 'postgres' ? postgresSchemaQuery : mysqlSchemaQuery
+  const rows = await runQuery(connectionString, schemaQuery)
+
+  // Group by table and build structured response
+  const tablesMap = new Map<string, TableSchema>()
+
+  rows.forEach((row) => {
+    if (!tablesMap.has(row.table_name)) {
+      tablesMap.set(row.table_name, {
+        tableName: row.table_name,
+        columns: []
+      })
+    }
+
+    const table = tablesMap.get(row.table_name)!
+
+    // Check if column already exists (due to multiple constraints)
+    if (!table.columns.find((col) => col.columnName === row.column_name)) {
+      table.columns.push({
+        columnName: row.column_name,
+        dataType: row.data_type,
+        isNullable: row.is_nullable === 'YES',
+        isPrimaryKey: row.is_primary_key || false,
+        isUnique: row.is_unique || false,
+        defaultValue: row.column_default,
+        maxLength: row.character_maximum_length
+      })
+    } else {
+      // Update existing column with constraint info
+      const existingCol = table.columns.find((col) => col.columnName === row.column_name)!
+      if (row.is_primary_key) existingCol.isPrimaryKey = true
+      if (row.is_unique) existingCol.isUnique = true
+    }
+  })
+
+  return Array.from(tablesMap.values())
+}
